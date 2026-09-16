@@ -8,7 +8,7 @@ import { AmortizationTable } from '../components/AmortizationTable';
 import { LoanChart, type ChartSeries } from '../components/LoanChart';
 import { BreakevenChart } from '../components/BreakevenChart';
 import { formatKr, formatKurs } from '../utils/formatters';
-import { Sparkles, Banknote, HelpCircle } from 'lucide-react';
+import { Sparkles, Banknote, HelpCircle, ChevronDown, ChevronUp, Receipt } from 'lucide-react';
 
 interface RefinancingViewProps {
   indfrielseLoans: BondLoan[];
@@ -42,6 +42,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
   // Tillægslån / Friværdiudtag state
   const [enableFrivaerdi, setEnableFrivaerdi] = useState<boolean>(false);
   const [frivaerdiUdbetalt, setFrivaerdiUdbetalt] = useState<number>(0);
+  const [showFees, setShowFees] = useState<boolean>(false);
 
   // New loan duration state (defaults to new bond maturity or 30)
   const [newLoanYears, setNewLoanYears] = useState<number>(30);
@@ -275,7 +276,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
             </div>
 
             {enableFrivaerdi && (
-              <div className="mt-3 pt-3 border-t border-slate-200/80 dark:border-slate-700/80 flex flex-col gap-2">
+              <div className="mt-3 pt-3 border-t border-slate-200/80 dark:border-slate-700/80 flex flex-col gap-2.5">
                 <CurrencyInput
                   label="Ønsket udbetalt friværdi i kontanter"
                   value={frivaerdiUdbetalt}
@@ -284,8 +285,14 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
                   max={maxPossibleFrivaerdi}
                   step={25_000}
                   helpText={`Maksimalt til 80 % LTV: ${formatKr(maxPossibleFrivaerdi)}`}
-                  showSlider={false}
+                  showSlider={true}
                 />
+                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                  <span>Samlet belåning inkl. udtag:</span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-200">
+                    {formatKr(debt + frivaerdiUdbetalt)} ({Math.round(((debt + frivaerdiUdbetalt) / (propertyValue || 1)) * 100)} % LTV)
+                  </span>
+                </div>
                 <div className="text-[11px] text-slate-500 dark:text-slate-400 leading-normal">
                   Dette kontantbeløb udbetales til din konto og tillægges den nye obligationshovedstol.
                 </div>
@@ -378,7 +385,13 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
               {formatKr(comparison.frivaerdiUdbetalt)}
             </div>
             <div className="mt-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Samlet kontantbehov: {formatKr(comparison.samletKontantbehov)} ({formatKr(comparison.indfrielsesBeloeb)} til indfrielse + {formatKr(comparison.frivaerdiUdbetalt)} til dig).
+              {enableFrivaerdi ? (
+                <>
+                  Netto udbetalt efter omk.: <span className="font-semibold text-slate-900 dark:text-slate-100">{formatKr(comparison.fees.nettoUdbetalt)}</span>.
+                </>
+              ) : (
+                `Samlet kontantbehov: ${formatKr(comparison.samletKontantbehov)} til indfrielse.`
+              )}
             </div>
           </div>
 
@@ -407,6 +420,58 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
               Ny hovedstol: {formatKr(comparison.nyHovedstol)} (mod tidligere {formatKr(comparison.existingRestgaeld)}).
             </div>
           </div>
+        </div>
+
+        {/* Omkostninger & Gebyrer Accordion */}
+        <div className="mt-5 border-t border-slate-200/80 dark:border-slate-800 pt-4">
+          <button
+            type="button"
+            onClick={() => setShowFees(!showFees)}
+            className="flex w-full items-center justify-between text-left text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Receipt className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <span>Estimat over låneomkostninger og gebyrer: <strong className="text-slate-900 dark:text-slate-100">{formatKr(comparison.fees.samledeOmkostninger)}</strong></span>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 font-medium">
+              <span>{showFees ? 'Skjul specifikation' : 'Vis specifikation'}</span>
+              {showFees ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </div>
+          </button>
+
+          {showFees && (
+            <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+              <div className="flex flex-col gap-1">
+                <span className="text-slate-500 dark:text-slate-400">Tinglysningsafgift (§ 5a)</span>
+                <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{formatKr(comparison.fees.tinglysningTotal)}</span>
+                <span className="text-[11px] text-slate-400">
+                  Fast {formatKr(comparison.fees.tinglysningFast)} + 1,45 % af gældsforhøjelse ({formatKr(comparison.fees.tinglysningVariabel)})
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <span className="text-slate-500 dark:text-slate-400">Kurtage (0,15 %)</span>
+                <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{formatKr(comparison.fees.kurtage)}</span>
+                <span className="text-[11px] text-slate-400">0,15 % af nye obligationers kursværdi</span>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <span className="text-slate-500 dark:text-slate-400">Bank & institutgebyrer</span>
+                <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{formatKr(comparison.fees.gebyrerInstitutOgBank)}</span>
+                <span className="text-[11px] text-slate-400">Stiftelse, ekspedition & indfrielse</span>
+              </div>
+
+              <div className="flex flex-col gap-1 bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                <span className="text-slate-500 dark:text-slate-400 font-medium">Netto udbetalt til NemKonto</span>
+                <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                  {enableFrivaerdi ? formatKr(comparison.fees.nettoUdbetalt) : '0 kr.'}
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  {enableFrivaerdi ? 'Friværdi fratrukket samlede omkostninger' : 'Ingen friværdi hævet'}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -444,9 +509,9 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
         />
 
         <MetricCard
-          title="Udbetalt til NemKonto"
-          value={formatKr(comparison.frivaerdiUdbetalt)}
-          subValue={enableFrivaerdi ? 'Kontant udbetaling' : 'Ren omlægning (0 kr.)'}
+          title={enableFrivaerdi ? "Netto udbetalt på konto" : "Udbetalt til NemKonto"}
+          value={enableFrivaerdi ? formatKr(comparison.fees.nettoUdbetalt) : '0 kr.'}
+          subValue={enableFrivaerdi ? `Brutto: ${formatKr(comparison.frivaerdiUdbetalt)} (omk. ${formatKr(comparison.fees.samledeOmkostninger)})` : 'Ren omlægning'}
           delta={{
             text: `Ny LTV: ${Math.round((comparison.nyHovedstol / propertyValue) * 100)} %`,
             type: 'neutral',

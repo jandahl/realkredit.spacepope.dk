@@ -63,6 +63,32 @@ export function calculateRefinancing(
   // Effective net capital gain/loss (excluding cash withdrawn):
   const kursgevinstEllerTab = existingRestgaeld - (nyHovedstol - frivaerdiUdbetalt);
 
+  // 4. Closing costs & fees (Omkostninger & Gebyrer)
+  // Tinglysningsafgiftsloven § 5a: Fast afgift 1.825 kr + 1,45% af hovedstolsforhøjelse (afrundet op til nærmeste 100 kr)
+  const tinglysningFast = 1_825;
+  const hovedstolForhoejelse = Math.max(0, nyHovedstol - existingRestgaeld);
+  const tinglysningVariabel = Math.ceil((hovedstolForhoejelse * 0.0145) / 100) * 100;
+  const tinglysningTotal = tinglysningFast + tinglysningVariabel;
+
+  // Kurtage: 0,15% af kursværdi på nye obligationer
+  const kurtage = Math.round(samletKontantbehov * 0.0015);
+
+  // Institut- og bankgebyrer (lånesagsgebyr, stiftelse, ekspedition, indfrielse)
+  const gebyrerInstitutOgBank = 8_500;
+
+  const samledeOmkostninger = tinglysningTotal + kurtage + gebyrerInstitutOgBank;
+  const nettoUdbetalt = Math.max(0, frivaerdiUdbetalt - samledeOmkostninger);
+
+  const fees = {
+    tinglysningFast,
+    tinglysningVariabel,
+    tinglysningTotal,
+    kurtage,
+    gebyrerInstitutOgBank,
+    samledeOmkostninger,
+    nettoUdbetalt,
+  };
+
   return {
     existingLoan,
     existingRestgaeld,
@@ -71,6 +97,7 @@ export function calculateRefinancing(
     kursgevinstIndfrielse,
     frivaerdiUdbetalt,
     samletKontantbehov,
+    fees,
     newLoan,
     newKurs: newLoan.kurs,
     nyHovedstol,

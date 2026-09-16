@@ -134,5 +134,9 @@ describe('amortization math engine', () => {
     expect(comparison.nyHovedstol).toBeCloseTo(1_883_641.78, 1);
     // Kurstab = 1,883,641.78 - 1,771,000 = 112,641.78
     expect(comparison.kurstabOptagelse).toBeCloseTo(112_641.78, 1);
+    // Fees check
+    expect(comparison.fees.tinglysningFast).toBe(1_825);
+    expect(comparison.fees.kurtage).toBe(Math.round(1_771_000 * 0.0015));
+    expect(comparison.fees.nettoUdbetalt).toBe(comparison.frivaerdiUdbetalt - comparison.fees.samledeOmkostninger);
   });
 });

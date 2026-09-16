@@ -52,6 +52,16 @@ export interface QuarterlyScheduleRow {
   endRestgaeld: number;
 }
 
+export interface RefinancingFees {
+  tinglysningFast: number; // Fast tinglysningsafgift (1.825 kr)
+  tinglysningVariabel: number; // 1,45% af evt. hovedstolsforhøjelse
+  tinglysningTotal: number;
+  kurtage: number; // 0,15% af kursværdi
+  gebyrerInstitutOgBank: number; // Stiftelsesgebyr, lånesagsgebyr mv. (~8.000 kr)
+  samledeOmkostninger: number;
+  nettoUdbetalt: number; // frivaerdiUdbetalt - samledeOmkostninger
+}
+
 export interface RefinancingComparison {
   // Existing loan details
   existingLoan: BondLoan;
@@ -61,8 +71,11 @@ export interface RefinancingComparison {
   kursgevinstIndfrielse: number; // existingRestgaeld - indfrielsesBeloeb
   
   // Equity payout & cash required
-  frivaerdiUdbetalt: number; // Extra cash extracted
+  frivaerdiUdbetalt: number; // Requested gross equity extracted
   samletKontantbehov: number; // indfrielsesBeloeb + frivaerdiUdbetalt
+  
+  // Closing costs & net payout
+  fees: RefinancingFees;
   
   // New loan details
   newLoan: BondLoan;
