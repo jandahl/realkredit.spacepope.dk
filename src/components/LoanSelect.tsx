@@ -50,8 +50,8 @@ export const LoanSelect: React.FC<LoanSelectProps> = ({
           onChange={handleChange}
           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-blue-400 transition-colors"
         >
-          {loans.map((loan) => (
-            <option key={loan.name + loan.kurs} value={loan.name}>
+          {loans.map((loan, idx) => (
+            <option key={`${loan.fondCode || loan.name}-${idx}`} value={loan.name}>
               {loan.name} — Kurs {formatKurs(loan.kurs)}
             </option>
           ))}
