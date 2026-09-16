@@ -189,8 +189,12 @@ export const TillaegslaanComparator: React.FC<TillaegslaanComparatorProps> = ({
 
               <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 pt-1">
                 <span>Renteudvikling:</span>
-                <span className="font-medium text-amber-600 dark:text-amber-400">
-                  100% af gælden stiger til {newLoan.rente}%
+                <span className={`font-medium ${newLoan.rente > existingLoan.rente ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                  {newLoan.rente > existingLoan.rente
+                    ? `100% af gælden stiger til ${newLoan.rente}%`
+                    : newLoan.rente < existingLoan.rente
+                    ? `100% af gælden falder til ${newLoan.rente}%`
+                    : `Gælden fortsætter på ${newLoan.rente}%`}
                 </span>
               </div>
             </div>

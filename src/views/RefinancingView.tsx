@@ -106,12 +106,30 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
     }
   }, [maxExistingYears, remainingYears, setRemainingYears]);
 
-  // Update newLoanYears when new loan changes
+  // Maximum years possible for the selected new bond
+  const maxNewLoanYears = useMemo(() => {
+    if (!activeNew) return 30;
+    if (activeNew.loebetid) return activeNew.loebetid;
+    const currentYear = 2026;
+    let maturityYear: number | undefined = activeNew.udloebsAar;
+    if (!maturityYear) {
+      const match = activeNew.name.match(/\b(20\d\d)\b/);
+      if (match) maturityYear = parseInt(match[1], 10);
+    }
+    if (maturityYear) {
+      return Math.max(1, Math.min(30, maturityYear - currentYear));
+    }
+    return 30;
+  }, [activeNew]);
+
+  // Update newLoanYears when new loan changes or if it exceeds maxNewLoanYears
   useEffect(() => {
     if (activeNew?.loebetid) {
-      setNewLoanYears(activeNew.loebetid);
+      setNewLoanYears(Math.min(activeNew.loebetid, maxNewLoanYears));
+    } else {
+      setNewLoanYears((prev) => Math.min(prev, maxNewLoanYears));
     }
-  }, [activeNew]);
+  }, [activeNew, maxNewLoanYears]);
 
   // Maximum equity payout at 80% LTV
   const max80LtvCash = propertyValue * 0.80;
@@ -174,7 +192,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       }
     }
 
-    return [
+    const seriesList: ChartSeries[] = [
       {
         id: 'new',
         name: `Nyt lån (${activeNew.name} - ${comparison.newYears} år)`,
@@ -189,7 +207,35 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
         data: existingData,
       },
     ];
-  }, [comparison, activeExisting, activeNew]);
+
+    if (tillaegslaanComparison) {
+      const tillaegData: number[] = [comparison.existingRestgaeld + tillaegslaanComparison.optionB_tillaegslaan.tillaegHovedstol];
+      for (let y = 1; y <= maxYears; y++) {
+        let existingRest = 0;
+        let tillaegRest = 0;
+
+        if (y <= comparison.existingYears) {
+          const qIndex = Math.min(y * 4 - 1, comparison.existingSchedule.schedule.length - 1);
+          existingRest = comparison.existingSchedule.schedule[qIndex]?.endRestgaeld ?? 0;
+        }
+        if (y <= comparison.newYears) {
+          const qIndex = Math.min(y * 4 - 1, tillaegslaanComparison.optionB_tillaegslaan.tillaegSchedule.schedule.length - 1);
+          tillaegRest = tillaegslaanComparison.optionB_tillaegslaan.tillaegSchedule.schedule[qIndex]?.endRestgaeld ?? 0;
+        }
+        tillaegData.push(existingRest + tillaegRest);
+      }
+
+      seriesList.push({
+        id: 'tillaegslaan',
+        name: `Option B: Behold ${activeExisting.name} + Tillægslån`,
+        color: '#10b981', // Emerald green
+        strokeDash: '3 3',
+        data: tillaegData,
+      });
+    }
+
+    return seriesList;
+  }, [comparison, tillaegslaanComparison, activeExisting, activeNew]);
 
   // Compute breakeven years for analysis
   const breakevenYears = useMemo<number | null>(() => {
@@ -394,20 +440,68 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
             </div>
             <input
               type="range"
-              min={10}
-              max={30}
-              step={5}
+              min={Math.min(10, maxNewLoanYears)}
+              max={maxNewLoanYears}
+              step={maxNewLoanYears <= 10 ? 1 : 5}
               value={newLoanYears}
               onChange={(e) => setNewLoanYears(parseInt(e.target.value, 10))}
               className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-blue-600 focus:outline-none dark:bg-slate-700 dark:accent-blue-500"
             />
             <div className="flex justify-between text-[10px] text-slate-400">
-              <span>10 år</span>
-              <span>20 år</span>
-              <span>30 år</span>
+              <span>{Math.min(10, maxNewLoanYears)} år</span>
+              {maxNewLoanYears > 20 && <span>20 år</span>}
+              <span>{maxNewLoanYears} år</span>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Key Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard
+          title="Ny restgæld (Hovedstol)"
+          value={formatKr(comparison.nyHovedstol)}
+          subValue={`Før: ${formatKr(comparison.existingRestgaeld)}`}
+          delta={{
+            text: isDebtReduced ? `${formatKr(Math.abs(comparison.deltaRestgaeld))} lavere` : `${formatKr(comparison.deltaRestgaeld)} højere`,
+            type: isDebtReduced ? 'positive' : 'negative',
+          }}
+          highlight={true}
+        />
+
+        <MetricCard
+          title="Månedlig ydelse efter skat"
+          value={formatKr(comparison.newSchedule.monthlyYdelseEfterSkat)}
+          subValue={`Før: ${formatKr(comparison.existingSchedule.monthlyYdelseEfterSkat)}`}
+          delta={{
+            text: `${comparison.deltaMonthlyYdelseEfterSkat > 0 ? '+' : ''}${formatKr(comparison.deltaMonthlyYdelseEfterSkat)}/md.`,
+            type: isPaymentLower ? 'positive' : 'negative',
+          }}
+        />
+
+        <MetricCard
+          title="Månedligt afdrag"
+          value={comparison.newSchedule.monthlyAfdrag === 0 ? '0 kr.' : formatKr(comparison.newSchedule.monthlyAfdrag)}
+          subValue={
+            comparison.existingSchedule.monthlyAfdrag === 0
+              ? 'Før: Afdragsfrit (0 kr.)'
+              : `Før: ${formatKr(comparison.existingSchedule.monthlyAfdrag)}`
+          }
+          delta={{
+            text: `${comparison.deltaMonthlyAfdrag > 0 ? '+' : ''}${formatKr(comparison.deltaMonthlyAfdrag)}/md.`,
+            type: comparison.deltaMonthlyAfdrag >= 0 ? 'positive' : 'negative',
+          }}
+        />
+
+        <MetricCard
+          title="Udbetalt til din konto"
+          value={enableFrivaerdi ? formatKr(comparison.frivaerdiUdbetalt) : '0 kr.'}
+          subValue={enableFrivaerdi ? `Omk. ${formatKr(comparison.fees.samledeOmkostninger)} medfinansieret` : 'Ren omlægning'}
+          delta={{
+            text: `Ny LTV: ${Math.round((comparison.nyHovedstol / propertyValue) * 100)} %`,
+            type: 'neutral',
+          }}
+        />
       </div>
 
       {/* Kursgevinst & Kurstab Breakdown */}
@@ -536,11 +630,11 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
             );
           })()}
 
-          {/* 3. Netto ændring i obligationsgæld */}
+          {/* 3. Nettoændring i obligationsgæld */}
           <div className="rounded-xl border border-blue-200/80 bg-blue-50/40 p-5 dark:border-blue-900/50 dark:bg-blue-950/20 flex flex-col justify-between">
             <div>
               <div className="text-xs font-semibold uppercase tracking-wider text-blue-800 dark:text-blue-300">
-                Netto ændring i restgæld
+                Nettoændring i restgæld
               </div>
               <div className={`mt-2 text-2xl font-bold ${isDebtReduced ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-100'}`}>
                 {comparison.deltaRestgaeld > 0 ? '+' : ''}{formatKr(comparison.deltaRestgaeld)}
@@ -603,54 +697,6 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
             </div>
           )}
         </div>
-      </div>
-
-      {/* Key Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard
-          title="Ny restgæld (Hovedstol)"
-          value={formatKr(comparison.nyHovedstol)}
-          subValue={`Før: ${formatKr(comparison.existingRestgaeld)}`}
-          delta={{
-            text: isDebtReduced ? `${formatKr(Math.abs(comparison.deltaRestgaeld))} lavere` : `${formatKr(comparison.deltaRestgaeld)} højere`,
-            type: isDebtReduced ? 'positive' : 'negative',
-          }}
-          highlight={true}
-        />
-
-        <MetricCard
-          title="Månedlig ydelse efter skat"
-          value={formatKr(comparison.newSchedule.monthlyYdelseEfterSkat)}
-          subValue={`Før: ${formatKr(comparison.existingSchedule.monthlyYdelseEfterSkat)}`}
-          delta={{
-            text: `${comparison.deltaMonthlyYdelseEfterSkat > 0 ? '+' : ''}${formatKr(comparison.deltaMonthlyYdelseEfterSkat)}/md.`,
-            type: isPaymentLower ? 'positive' : 'negative',
-          }}
-        />
-
-        <MetricCard
-          title="Månedligt afdrag"
-          value={comparison.newSchedule.monthlyAfdrag === 0 ? '0 kr.' : formatKr(comparison.newSchedule.monthlyAfdrag)}
-          subValue={
-            comparison.existingSchedule.monthlyAfdrag === 0
-              ? 'Før: Afdragsfrit (0 kr.)'
-              : `Før: ${formatKr(comparison.existingSchedule.monthlyAfdrag)}`
-          }
-          delta={{
-            text: `${comparison.deltaMonthlyAfdrag > 0 ? '+' : ''}${formatKr(comparison.deltaMonthlyAfdrag)}/md.`,
-            type: comparison.deltaMonthlyAfdrag >= 0 ? 'positive' : 'negative',
-          }}
-        />
-
-        <MetricCard
-          title="Udbetalt til din konto"
-          value={enableFrivaerdi ? formatKr(comparison.frivaerdiUdbetalt) : '0 kr.'}
-          subValue={enableFrivaerdi ? `Omk. ${formatKr(comparison.fees.samledeOmkostninger)} medfinansieret` : 'Ren omlægning'}
-          delta={{
-            text: `Ny LTV: ${Math.round((comparison.nyHovedstol / propertyValue) * 100)} %`,
-            type: 'neutral',
-          }}
-        />
       </div>
 
       {/* Tillægslån vs Fuld Omlægning Comparator */}
