@@ -28,7 +28,6 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
 
   const {
     existingLoan,
-    existingRestgaeld,
     newLoan,
     nyHovedstol,
     deltaRestgaeld,
@@ -43,8 +42,21 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
   const newKurs = newLoan.kurs;
 
   // Common Danish rules of thumb evaluation:
-  // 1. Min restgæld: >= 500.000 kr.
-  const hasSufficientDebt = existingRestgaeld >= 500_000;
+  // 1. Omkostninger i forhold til gevinst/ændring:
+  // For opkonvertering: Omkostninger som procent af kursgevinsten ved indfrielse
+  // For nedkonvertering: Omkostninger i forhold til årlig likviditetsbesparelse (antal år at tjene hjem)
+  const annualSavings = Math.max(1, Math.abs(deltaMonthlyYdelseEfterSkat) * 12);
+  const feeImpactPercent = isOpkonvertering
+    ? (comparison.kursgevinstIndfrielse > 0 ? (fees.samledeOmkostninger / comparison.kursgevinstIndfrielse) * 100 : 100)
+    : isNedkonvertering
+    ? (fees.samledeOmkostninger / annualSavings)
+    : 0;
+
+  const isFeeProportionHealthy = isOpkonvertering
+    ? feeImpactPercent <= 10.0 // Costs shouldn't eat more than 10% of debt cut
+    : isNedkonvertering
+    ? feeImpactPercent <= 3.0 // Costs should be earned back within 3 years of savings
+    : true;
 
   // 2. Renteforskel rule of thumb:
   // - Opkonvertering: renteforskel should ideally be >= +1.5%
@@ -211,22 +223,44 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
 
             <div className="space-y-3 text-xs">
               
-              {/* Regel 1: Restgældsstørrelse */}
+              {/* Regel 1: Omkostninger i forhold til gevinst/ændring */}
               <div className="flex items-start justify-between gap-4 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50">
                 <div className="space-y-0.5">
                   <div className="font-semibold text-slate-800 dark:text-slate-200">
-                    1. Restgæld over 500.000 – 750.000 kr.
+                    1. Omkostninger i forhold til gevinst ({formatKr(fees.samledeOmkostninger)})
                   </div>
                   <div className="text-slate-500 dark:text-slate-400">
-                    Faste stiftelsesomkostninger på ~{formatKr(fees.samledeOmkostninger)} æder for meget af mindre lån.
+                    {isOpkonvertering ? (
+                      <>
+                        Omkostningerne udgør <strong>{feeImpactPercent.toFixed(1)} %</strong> af din kursgevinst ved indfrielse ({formatKr(comparison.kursgevinstIndfrielse)}).
+                        {feeImpactPercent <= 10
+                          ? ' En sund omlægning hvor gebyrerne kun æder en lille brøkdel af gældskuttet.'
+                          : ' Gebyrerne æder en mærkbar del af gældsreduktionen.'}
+                      </>
+                    ) : isNedkonvertering ? (
+                      <>
+                        Omkostningerne svarer til ca. <strong>{feeImpactPercent.toFixed(1)} års</strong> rentebesparelse ({formatKr(Math.abs(deltaMonthlyYdelseEfterSkat) * 12)}/år efter skat).
+                        {feeImpactPercent <= 3
+                          ? ' Omkostningerne er hurtigt tjent hjem af den lavere ydelse.'
+                          : ' Det tager relativt lang tid alene at tjene stiftelsesomkostningerne hjem.'}
+                      </>
+                    ) : (
+                      <>
+                        Samlede omkostninger på {formatKr(fees.samledeOmkostninger)} skal vurderes mod lånets ændrede vilkår.
+                      </>
+                    )}
                   </div>
                 </div>
                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold shrink-0 ${
-                  hasSufficientDebt 
+                  isFeeProportionHealthy 
                     ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' 
-                    : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
                 }`}>
-                  {hasSufficientDebt ? `Opfyldt (${formatKr(existingRestgaeld)})` : `For lille (${formatKr(existingRestgaeld)})`}
+                  {isOpkonvertering 
+                    ? `${feeImpactPercent.toFixed(1)} % af gevinst ${isFeeProportionHealthy ? '(Sundt)' : '(Højt)'}`
+                    : isNedkonvertering
+                    ? `${feeImpactPercent.toFixed(1)} års besparelse ${isFeeProportionHealthy ? '(Sundt)' : '(Langsomt)'}`
+                    : `${formatKr(fees.samledeOmkostninger)}`}
                 </span>
               </div>
 

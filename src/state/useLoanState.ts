@@ -13,6 +13,8 @@ export interface SharedLoanState {
   selectedStandardLoanName: string | null;
   selectedLayer1LoanName: string | null;
   selectedLayer2LoanName: string | null;
+  enableFrivaerdi: boolean;
+  frivaerdiUdbetalt: number;
 }
 
 const STORAGE_KEY = 'realkredit_calculator_state_v1';
@@ -29,6 +31,8 @@ const DEFAULT_STATE: SharedLoanState = {
   selectedStandardLoanName: null,
   selectedLayer1LoanName: null,
   selectedLayer2LoanName: null,
+  enableFrivaerdi: false,
+  frivaerdiUdbetalt: 0,
 };
 
 // Parse initial state from URL params or localStorage
@@ -48,6 +52,8 @@ function getInitialState(): SharedLoanState {
     const debt = parseInt(urlParams.get('debt') || '', 10) || DEFAULT_STATE.existingRestgaeld;
     const remainingYears = parseInt(urlParams.get('years') || '', 10) || DEFAULT_STATE.remainingYears;
     const splitPercent = parseInt(urlParams.get('split') || '', 10) || DEFAULT_STATE.splitPercent;
+    const enableFrivaerdi = urlParams.get('cashout') === '1';
+    const frivaerdiUdbetalt = parseInt(urlParams.get('cash') || '', 10) || DEFAULT_STATE.frivaerdiUdbetalt;
 
     return {
       currentView,
@@ -61,6 +67,8 @@ function getInitialState(): SharedLoanState {
       selectedStandardLoanName: urlParams.get('stdLoan') || null,
       selectedLayer1LoanName: urlParams.get('l1Loan') || null,
       selectedLayer2LoanName: urlParams.get('l2Loan') || null,
+      enableFrivaerdi,
+      frivaerdiUdbetalt,
     };
   }
 
@@ -94,6 +102,13 @@ export function useLoanState() {
     params.set('debt', state.existingRestgaeld.toString());
     params.set('years', state.remainingYears.toString());
     params.set('split', state.splitPercent.toString());
+
+    if (state.enableFrivaerdi) {
+      params.set('cashout', '1');
+      if (state.frivaerdiUdbetalt > 0) {
+        params.set('cash', state.frivaerdiUdbetalt.toString());
+      }
+    }
 
     if (state.selectedExistingLoanName) params.set('oldLoan', state.selectedExistingLoanName);
     if (state.selectedNewLoanName) params.set('newLoan', state.selectedNewLoanName);
@@ -159,6 +174,14 @@ export function useLoanState() {
     setState((prev) => ({ ...prev, selectedLayer2LoanName }));
   }, []);
 
+  const setEnableFrivaerdi = useCallback((enableFrivaerdi: boolean) => {
+    setState((prev) => ({ ...prev, enableFrivaerdi }));
+  }, []);
+
+  const setFrivaerdiUdbetalt = useCallback((frivaerdiUdbetalt: number) => {
+    setState((prev) => ({ ...prev, frivaerdiUdbetalt }));
+  }, []);
+
   const getShareableUrl = useCallback(() => {
     return window.location.href;
   }, []);
@@ -175,6 +198,8 @@ export function useLoanState() {
     setSelectedStandardLoanName,
     setSelectedLayer1LoanName,
     setSelectedLayer2LoanName,
+    setEnableFrivaerdi,
+    setFrivaerdiUdbetalt,
     getShareableUrl,
   };
 }

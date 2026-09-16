@@ -24,6 +24,10 @@ interface RefinancingViewProps {
   setSelectedExistingLoanName: (name: string | null) => void;
   selectedNewLoanName: string | null;
   setSelectedNewLoanName: (name: string | null) => void;
+  enableFrivaerdi: boolean;
+  setEnableFrivaerdi: (val: boolean) => void;
+  frivaerdiUdbetalt: number;
+  setFrivaerdiUdbetalt: (val: number) => void;
 }
 
 export const RefinancingView: React.FC<RefinancingViewProps> = ({
@@ -39,10 +43,11 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
   setSelectedExistingLoanName,
   selectedNewLoanName,
   setSelectedNewLoanName,
+  enableFrivaerdi,
+  setEnableFrivaerdi,
+  frivaerdiUdbetalt,
+  setFrivaerdiUdbetalt,
 }) => {
-  // Tillægslån / Friværdiudtag state
-  const [enableFrivaerdi, setEnableFrivaerdi] = useState<boolean>(false);
-  const [frivaerdiUdbetalt, setFrivaerdiUdbetalt] = useState<number>(0);
   const [showFees, setShowFees] = useState<boolean>(false);
   const [showDumbIdeas, setShowDumbIdeas] = useState<boolean>(false);
 

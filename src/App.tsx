@@ -24,6 +24,8 @@ export const App: React.FC = () => {
     setSelectedStandardLoanName,
     setSelectedLayer1LoanName,
     setSelectedLayer2LoanName,
+    setEnableFrivaerdi,
+    setFrivaerdiUdbetalt,
   } = useLoanState();
 
   const [optagelseLoans, setOptagelseLoans] = useState<BondLoan[]>(FALLBACK_OPTAGELSE_LAAN);
@@ -84,6 +86,10 @@ export const App: React.FC = () => {
             setSelectedExistingLoanName={setSelectedExistingLoanName}
             selectedNewLoanName={state.selectedNewLoanName}
             setSelectedNewLoanName={setSelectedNewLoanName}
+            enableFrivaerdi={state.enableFrivaerdi}
+            setEnableFrivaerdi={setEnableFrivaerdi}
+            frivaerdiUdbetalt={state.frivaerdiUdbetalt}
+            setFrivaerdiUdbetalt={setFrivaerdiUdbetalt}
           />
         )}
 
