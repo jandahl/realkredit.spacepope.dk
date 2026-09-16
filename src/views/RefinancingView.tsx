@@ -615,8 +615,12 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
 
         <MetricCard
           title="Månedligt afdrag"
-          value={formatKr(comparison.newSchedule.monthlyAfdrag)}
-          subValue={`Før: ${formatKr(comparison.existingSchedule.monthlyAfdrag)}`}
+          value={comparison.newSchedule.monthlyAfdrag === 0 ? '0 kr.' : formatKr(comparison.newSchedule.monthlyAfdrag)}
+          subValue={
+            comparison.existingSchedule.monthlyAfdrag === 0
+              ? 'Før: Afdragsfrit (0 kr.)'
+              : `Før: ${formatKr(comparison.existingSchedule.monthlyAfdrag)}`
+          }
           delta={{
             text: `${comparison.deltaMonthlyAfdrag > 0 ? '+' : ''}${formatKr(comparison.deltaMonthlyAfdrag)}/md.`,
             type: comparison.deltaMonthlyAfdrag >= 0 ? 'positive' : 'negative',
