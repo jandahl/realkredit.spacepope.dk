@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import type { BondLoan } from '../calculator/types';
 import { calculateTwoLayerLoan } from '../calculator/twoLayer';
 import { CurrencyInput } from '../components/CurrencyInput';
-import { LoanSelect } from '../components/LoanSelect';
+import { DependentLoanSelect } from '../components/DependentLoanSelect';
 import { MetricCard } from '../components/MetricCard';
 import { AmortizationTable } from '../components/AmortizationTable';
 import { LoanChart, type ChartSeries } from '../components/LoanChart';
@@ -36,7 +36,7 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
   selectedLayer2LoanName,
   setSelectedLayer2LoanName,
 }) => {
-  // Defaults: Layer 1 = F-kort (low interest bottom) or Fixed afdragsfri, Layer 2 = 4% Fixed med afdrag
+  // Defaults: Layer 1 = F-kort, Layer 2 = 4% Fixed med afdrag
   const defaultLayer1 = useMemo(() => {
     return (
       optagelseLoans.find((l) => l.flex && l.afdragsfri) ||
@@ -144,7 +144,7 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
 
       {/* Inputs */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Left: Global Property / Debt */}
+        {/* Left: Global Property / Debt (no sliders on currency) */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900 flex flex-col gap-5 transition-colors">
           <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-3">
             Bolig & Samlet Lån
@@ -155,8 +155,9 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
             value={propertyValue}
             onChange={setPropertyValue}
             min={500_000}
-            max={15_000_000}
+            max={20_000_000}
             step={100_000}
+            showSlider={false}
           />
 
           <CurrencyInput
@@ -164,9 +165,10 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
             value={totalLoanAmount}
             onChange={setTotalLoanAmount}
             min={100_000}
-            max={Math.min(propertyValue * 0.8, 12_000_000)}
+            max={Math.min(propertyValue * 0.8, 15_000_000)}
             step={50_000}
             helpText={`Samlet LTV: ${totalLtv} %`}
+            showSlider={false}
           />
 
           <div className="flex flex-col gap-1.5">
@@ -198,7 +200,7 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
             <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Bundlån ({formatKr(result.layer1Amount)})</h3>
           </div>
 
-          <LoanSelect
+          <DependentLoanSelect
             label="Vælg lån til Lag 1"
             loans={optagelseLoans}
             selectedLoan={activeLayer1}
@@ -233,7 +235,7 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
             <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Toplån ({formatKr(result.layer2Amount)})</h3>
           </div>
 
-          <LoanSelect
+          <DependentLoanSelect
             label="Vælg lån til Lag 2"
             loans={optagelseLoans}
             selectedLoan={activeLayer2}
@@ -295,7 +297,7 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
         series={chartSeries}
       />
 
-      {/* Combined Schedule Table */}
+      {/* Unfoldable Combined Schedule Table */}
       <AmortizationTable
         calculation={{
           hovedstol: result.layer1Result.hovedstol + result.layer2Result.hovedstol,
@@ -314,6 +316,7 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
           schedule: result.combinedSchedule,
         }}
         title="Kombineret Annuitetstabel (Lag 1 + Lag 2)"
+        defaultOpen={false}
       />
     </div>
   );

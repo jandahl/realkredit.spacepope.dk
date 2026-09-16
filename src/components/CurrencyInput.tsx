@@ -9,6 +9,7 @@ interface CurrencyInputProps {
   step?: number;
   suffix?: string;
   helpText?: string;
+  showSlider?: boolean;
 }
 
 export const CurrencyInput: React.FC<CurrencyInputProps> = ({
@@ -20,6 +21,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
   step = 50_000,
   suffix = 'kr.',
   helpText,
+  showSlider = false,
 }) => {
   const [displayValue, setDisplayValue] = useState(value.toLocaleString('da-DK'));
 
@@ -58,7 +60,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
         </div>
       </div>
 
-      {max > min && (
+      {showSlider && max > min && (
         <input
           type="range"
           min={min}

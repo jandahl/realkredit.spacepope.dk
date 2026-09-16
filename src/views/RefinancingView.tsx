@@ -2,10 +2,11 @@ import React, { useMemo } from 'react';
 import type { BondLoan } from '../calculator/types';
 import { calculateRefinancing } from '../calculator/refinancing';
 import { CurrencyInput } from '../components/CurrencyInput';
-import { LoanSelect } from '../components/LoanSelect';
+import { DependentLoanSelect } from '../components/DependentLoanSelect';
 import { MetricCard } from '../components/MetricCard';
 import { AmortizationTable } from '../components/AmortizationTable';
 import { LoanChart, type ChartSeries } from '../components/LoanChart';
+import { BreakevenChart } from '../components/BreakevenChart';
 import { formatKr, formatPercent, formatKurs } from '../utils/formatters';
 import { Sparkles } from 'lucide-react';
 
@@ -133,7 +134,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
 
       {/* Input Section */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Left Card: Property & Debt Inputs */}
+        {/* Left Card: Property & Debt Inputs (no slider on values) */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900 flex flex-col gap-5 transition-colors">
           <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-3">
             1. Din bolig & restgæld
@@ -144,9 +145,10 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
             value={propertyValue}
             onChange={setPropertyValue}
             min={500_000}
-            max={15_000_000}
+            max={20_000_000}
             step={100_000}
             helpText={`LTV: ${Math.round((debt / propertyValue) * 100)} %`}
+            showSlider={false}
           />
 
           <CurrencyInput
@@ -154,8 +156,9 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
             value={debt}
             onChange={setDebt}
             min={100_000}
-            max={Math.min(propertyValue, 12_000_000)}
+            max={Math.min(propertyValue, 15_000_000)}
             step={50_000}
+            showSlider={false}
           />
 
           <div className="flex flex-col gap-1.5">
@@ -180,13 +183,13 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
           </div>
         </div>
 
-        {/* Right Card: Loan Selection */}
+        {/* Right Card: Dependent Loan Selection */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900 flex flex-col gap-5 transition-colors">
           <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-3">
             2. Vælg lån til sammenligning
           </h3>
 
-          <LoanSelect
+          <DependentLoanSelect
             label="Nuværende lån (indfrielse)"
             loans={indfrielseLoans}
             selectedLoan={activeExisting}
@@ -194,15 +197,17 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
             subtext={`Obligationskurs: ${formatKurs(activeExisting.kurs)} (Indfrielseskurs: ${formatKurs(Math.min(100, activeExisting.kurs))})`}
           />
 
-          <LoanSelect
-            label="Nyt lån (optagelse)"
-            loans={optagelseLoans}
-            selectedLoan={activeNew}
-            onSelectLoan={(l) => setSelectedNewLoanName(l.name)}
-            subtext={`Aktuel optagelseskurs: ${formatKurs(activeNew.kurs)}`}
-          />
+          <div className="border-t border-slate-100 dark:border-slate-800 pt-3">
+            <DependentLoanSelect
+              label="Nyt lån (optagelse)"
+              loans={optagelseLoans}
+              selectedLoan={activeNew}
+              onSelectLoan={(l) => setSelectedNewLoanName(l.name)}
+              subtext={`Aktuel optagelseskurs: ${formatKurs(activeNew.kurs)}`}
+            />
+          </div>
 
-          <div className="mt-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-4 text-xs text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800">
+          <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3.5 text-xs text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800">
             <div className="font-semibold text-slate-800 dark:text-slate-200 mb-1">Sådan fungerer indfrielsen:</div>
             Dine nuværende obligationer indfries til kurs{' '}
             <span className="font-semibold text-slate-900 dark:text-slate-100">{formatKurs(Math.min(100, activeExisting.kurs))}</span>. Det kræver{' '}
@@ -356,6 +361,13 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
         </div>
       </div>
 
+      {/* Breakeven Graph */}
+      <BreakevenChart
+        existingSchedule={comparison.existingSchedule}
+        newSchedule={comparison.newSchedule}
+        remainingYears={remainingYears}
+      />
+
       {/* Graphical Chart of Restgæld Progression */}
       <LoanChart
         title="Restgældsudvikling over tid"
@@ -364,15 +376,17 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
         series={chartSeries}
       />
 
-      {/* Amortization Tables */}
-      <div className="space-y-6">
+      {/* Unfoldable Amortization Tables */}
+      <div className="space-y-4">
         <AmortizationTable
           calculation={comparison.newSchedule}
           title={`Annuitetstabel for Nyt Lån (${activeNew.name})`}
+          defaultOpen={false}
         />
         <AmortizationTable
           calculation={comparison.existingSchedule}
           title={`Annuitetstabel for Nuværende Lån (${activeExisting.name})`}
+          defaultOpen={false}
         />
       </div>
     </div>

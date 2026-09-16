@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import type { BondLoan } from '../calculator/types';
 import { calculateLoanAmortization } from '../calculator/amortization';
 import { CurrencyInput } from '../components/CurrencyInput';
-import { LoanSelect } from '../components/LoanSelect';
+import { DependentLoanSelect } from '../components/DependentLoanSelect';
 import { MetricCard } from '../components/MetricCard';
 import { AmortizationTable } from '../components/AmortizationTable';
 import { LoanChart, type ChartSeries } from '../components/LoanChart';
@@ -49,9 +49,9 @@ export const StandardLoanView: React.FC<StandardLoanViewProps> = ({
     return calculateLoanAmortization(activeLoan, totalQuarters, principal, ltvRange);
   }, [activeLoan, loanAmount, propertyValue]);
 
-  const totalYears = (activeLoan?.loebetid || 30);
+  const totalYears = activeLoan?.loebetid || 30;
 
-  // Generate chart data: Restgæld progression and remaining debt curve
+  // Generate chart data: Restgæld progression
   const chartSeries = useMemo<ChartSeries[]>(() => {
     if (!calculation) return [];
 
@@ -103,8 +103,9 @@ export const StandardLoanView: React.FC<StandardLoanViewProps> = ({
             value={propertyValue}
             onChange={setPropertyValue}
             min={500_000}
-            max={15_000_000}
+            max={20_000_000}
             step={100_000}
+            showSlider={false}
           />
 
           <CurrencyInput
@@ -112,9 +113,10 @@ export const StandardLoanView: React.FC<StandardLoanViewProps> = ({
             value={loanAmount}
             onChange={setLoanAmount}
             min={100_000}
-            max={Math.min(propertyValue * 0.8, 12_000_000)}
+            max={Math.min(propertyValue * 0.8, 15_000_000)}
             step={50_000}
             helpText={`Belåningsgrad (LTV): ${ltvPercent} % (max 80 %)`}
+            showSlider={false}
           />
         </div>
 
@@ -123,7 +125,7 @@ export const StandardLoanView: React.FC<StandardLoanViewProps> = ({
             Vælg lånetype
           </h3>
 
-          <LoanSelect
+          <DependentLoanSelect
             label="Obligationslån"
             loans={optagelseLoans}
             selectedLoan={activeLoan}
@@ -187,10 +189,11 @@ export const StandardLoanView: React.FC<StandardLoanViewProps> = ({
         series={chartSeries}
       />
 
-      {/* Table */}
+      {/* Unfoldable Table */}
       <AmortizationTable
         calculation={calculation}
         title={`Annuitetstabel for ${activeLoan.name}`}
+        defaultOpen={false}
       />
     </div>
   );
