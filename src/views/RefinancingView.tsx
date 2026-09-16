@@ -226,7 +226,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
 
       seriesList.push({
         id: 'tillaegslaan',
-        name: `Option B: Behold ${activeExisting.name} + Tillægslån`,
+        name: `Option B: Behold ${activeExisting.name} + Tillægslån (${activeNew.name})`,
         color: '#10b981', // Emerald green
         strokeDash: '3 3',
         data: tillaegData,
