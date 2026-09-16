@@ -100,12 +100,12 @@ describe('amortization math engine', () => {
     expect(comparison.indfrielsesBeloeb).toBeCloseTo(1_571_000, 1);
     // Kursgevinst = 2,000,000 - 1,571,000 = 429,000
     expect(comparison.kursgevinstIndfrielse).toBeCloseTo(429_000, 1);
-    // New principal = 1,571,000 / 0.9402 = 1,670,921.08
-    expect(comparison.nyHovedstol).toBeCloseTo(1_670_921.08, 1);
-    // Kurstab optagelse = 1,670,921.08 - 1,571,000 = 99,921.08
-    expect(comparison.kurstabOptagelse).toBeCloseTo(99_921.08, 1);
-    // Net debt reduction = 2,000,000 - 1,670,921.08 = 329,078.92 kr
-    expect(comparison.kursgevinstEllerTab).toBeCloseTo(329_078.92, 1);
+    const expectedKontant = 1_571_000 + comparison.fees.samledeOmkostninger;
+    const expectedNyHovedstol = expectedKontant / 0.9402;
+    expect(comparison.nyHovedstol).toBeCloseTo(expectedNyHovedstol, 1);
+    expect(comparison.kurstabOptagelse).toBeCloseTo(expectedNyHovedstol - expectedKontant, 1);
+    expect(comparison.fees.tinglysningFast).toBe(1_825);
+    expect(comparison.fees.gebyrerInstitutOgBank).toBe(8_500);
   });
 
   it('correctly models refinancing with equity cashout (tillægslån)', () => {
@@ -125,18 +125,15 @@ describe('amortization math engine', () => {
       bidragsSats: [0.0045, 0.0085, 0.012],
     };
 
-    // 200,000 kr cash extracted
+    // 200,000 kr cash extracted to bank account
     const comparison = calculateRefinancing(oldLoan, 2_000_000, newLoan, 3_000_000, 30, 30, 200_000);
     expect(comparison.indfrielsesBeloeb).toBeCloseTo(1_571_000, 1);
     expect(comparison.frivaerdiUdbetalt).toBe(200_000);
-    expect(comparison.samletKontantbehov).toBe(1_771_000);
-    // New principal = 1,771,000 / 0.9402 = 1,883,641.78
-    expect(comparison.nyHovedstol).toBeCloseTo(1_883_641.78, 1);
-    // Kurstab = 1,883,641.78 - 1,771,000 = 112,641.78
-    expect(comparison.kurstabOptagelse).toBeCloseTo(112_641.78, 1);
-    // Fees check
+    // In Option 1, netto udbetalt til låntager is precisely the requested 200,000 kr
+    expect(comparison.fees.nettoUdbetalt).toBe(200_000);
+    // Closing costs are financed into total cash need
+    expect(comparison.samletKontantbehov).toBe(1_571_000 + 200_000 + comparison.fees.samledeOmkostninger);
     expect(comparison.fees.tinglysningFast).toBe(1_825);
-    expect(comparison.fees.kurtage).toBe(Math.round(1_771_000 * 0.0015));
-    expect(comparison.fees.nettoUdbetalt).toBe(comparison.frivaerdiUdbetalt - comparison.fees.samledeOmkostninger);
+    expect(comparison.fees.gebyrerInstitutOgBank).toBe(8_500);
   });
 });

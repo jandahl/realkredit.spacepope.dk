@@ -278,7 +278,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
             {enableFrivaerdi && (
               <div className="mt-3 pt-3 border-t border-slate-200/80 dark:border-slate-700/80 flex flex-col gap-2.5">
                 <CurrencyInput
-                  label="Ønsket udbetalt friværdi i kontanter"
+                  label="Ønsket udbetalt til din konto"
                   value={frivaerdiUdbetalt}
                   onChange={setFrivaerdiUdbetalt}
                   min={0}
@@ -294,7 +294,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-500 dark:text-slate-400 leading-normal">
-                  Dette kontantbeløb udbetales til din konto og tillægges den nye obligationshovedstol.
+                  Dette beløb overføres til din konto. Låneomkostninger og gebyrer medfinansieres i det nye lån.
                 </div>
               </div>
             )}
@@ -379,7 +379,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
           {/* 2. Tillægslån udbetaling */}
           <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-800/40">
             <div className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
-              Kontant friværdi udbetalt
+              Udbetalt til din konto
             </div>
             <div className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
               {formatKr(comparison.frivaerdiUdbetalt)}
@@ -387,10 +387,10 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
             <div className="mt-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
               {enableFrivaerdi ? (
                 <>
-                  Netto udbetalt efter omk.: <span className="font-semibold text-slate-900 dark:text-slate-100">{formatKr(comparison.fees.nettoUdbetalt)}</span>.
+                  Gebyrer ({formatKr(comparison.fees.samledeOmkostninger)}) er medfinansieret i det nye lån.
                 </>
               ) : (
-                `Samlet kontantbehov: ${formatKr(comparison.samletKontantbehov)} til indfrielse.`
+                `Samlet kontantbehov: ${formatKr(comparison.samletKontantbehov)} til indfrielse og omk.`
               )}
             </div>
           </div>
@@ -431,7 +431,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
           >
             <div className="flex items-center gap-2">
               <Receipt className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <span>Estimat over låneomkostninger og gebyrer: <strong className="text-slate-900 dark:text-slate-100">{formatKr(comparison.fees.samledeOmkostninger)}</strong></span>
+              <span>Estimat over låneomkostninger og gebyrer: <strong className="text-slate-900 dark:text-slate-100">{formatKr(comparison.fees.samledeOmkostninger)}</strong> (medfinansieret i lånet)</span>
             </div>
             <div className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 font-medium">
               <span>{showFees ? 'Skjul specifikation' : 'Vis specifikation'}</span>
@@ -462,12 +462,12 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
               </div>
 
               <div className="flex flex-col gap-1 bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
-                <span className="text-slate-500 dark:text-slate-400 font-medium">Netto udbetalt til NemKonto</span>
+                <span className="text-slate-500 dark:text-slate-400 font-medium">Udbetalt til NemKonto</span>
                 <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                  {enableFrivaerdi ? formatKr(comparison.fees.nettoUdbetalt) : '0 kr.'}
+                  {enableFrivaerdi ? formatKr(comparison.frivaerdiUdbetalt) : '0 kr.'}
                 </span>
                 <span className="text-[11px] text-slate-400">
-                  {enableFrivaerdi ? 'Friværdi fratrukket samlede omkostninger' : 'Ingen friværdi hævet'}
+                  {enableFrivaerdi ? 'Direkte overførsel uden fradrag for omkostninger' : 'Ingen friværdi hævet'}
                 </span>
               </div>
             </div>
@@ -509,9 +509,9 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
         />
 
         <MetricCard
-          title={enableFrivaerdi ? "Netto udbetalt på konto" : "Udbetalt til NemKonto"}
-          value={enableFrivaerdi ? formatKr(comparison.fees.nettoUdbetalt) : '0 kr.'}
-          subValue={enableFrivaerdi ? `Brutto: ${formatKr(comparison.frivaerdiUdbetalt)} (omk. ${formatKr(comparison.fees.samledeOmkostninger)})` : 'Ren omlægning'}
+          title="Udbetalt til din konto"
+          value={enableFrivaerdi ? formatKr(comparison.frivaerdiUdbetalt) : '0 kr.'}
+          subValue={enableFrivaerdi ? `Omk. ${formatKr(comparison.fees.samledeOmkostninger)} medfinansieret` : 'Ren omlægning'}
           delta={{
             text: `Ny LTV: ${Math.round((comparison.nyHovedstol / propertyValue) * 100)} %`,
             type: 'neutral',

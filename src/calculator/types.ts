@@ -57,9 +57,9 @@ export interface RefinancingFees {
   tinglysningVariabel: number; // 1,45% af evt. hovedstolsforhøjelse
   tinglysningTotal: number;
   kurtage: number; // 0,15% af kursværdi
-  gebyrerInstitutOgBank: number; // Stiftelsesgebyr, lånesagsgebyr mv. (~8.000 kr)
+  gebyrerInstitutOgBank: number; // Stiftelsesgebyr, lånesagsgebyr mv. (~8.500 kr)
   samledeOmkostninger: number;
-  nettoUdbetalt: number; // frivaerdiUdbetalt - samledeOmkostninger
+  nettoUdbetalt: number; // Det beløb der reelt overføres til låntagers konto
 }
 
 export interface RefinancingComparison {
@@ -71,8 +71,8 @@ export interface RefinancingComparison {
   kursgevinstIndfrielse: number; // existingRestgaeld - indfrielsesBeloeb
   
   // Equity payout & cash required
-  frivaerdiUdbetalt: number; // Requested gross equity extracted
-  samletKontantbehov: number; // indfrielsesBeloeb + frivaerdiUdbetalt
+  frivaerdiUdbetalt: number; // Net cash paid out to borrower's account
+  samletKontantbehov: number; // indfrielsesBeloeb + frivaerdiUdbetalt + fees.samledeOmkostninger
   
   // Closing costs & net payout
   fees: RefinancingFees;

@@ -25,13 +25,48 @@ export function calculateRefinancing(
   const indfrielsesBeloeb = (existingRestgaeld * redemptionKurs) / 100;
   const kursgevinstIndfrielse = Math.max(0, existingRestgaeld - indfrielsesBeloeb);
 
-  // 2. Cash requirement
-  const samletKontantbehov = indfrielsesBeloeb + Math.max(0, frivaerdiUdbetalt);
+  // 2. Initial estimate of fees and cash requirement
+  // Statutory and institutional costs:
+  const tinglysningFast = 1_825;
+  const gebyrerInstitutOgBank = 8_500;
+  
+  // Calculate exact total cash need and new nominal principal including financed fees
+  // We solve:
+  // samletKontantbehov = indfrielsesBeloeb + frivaerdiUdbetalt + samledeOmkostninger
+  // nyHovedstol = samletKontantbehov / (newLoan.kurs / 100)
+  // kurtage = samletKontantbehov * 0.0015
+  // tinglysningVariabel = Math.max(0, nyHovedstol - existingRestgaeld) * 0.0145 (rounded up to nearest 100)
+  
+  let samletKontantbehov = indfrielsesBeloeb + Math.max(0, frivaerdiUdbetalt) + tinglysningFast + gebyrerInstitutOgBank;
+  let nyHovedstol = (samletKontantbehov / newLoan.kurs) * 100;
+  let tinglysningVariabel = Math.ceil((Math.max(0, nyHovedstol - existingRestgaeld) * 0.0145) / 100) * 100;
+  let kurtage = Math.round(samletKontantbehov * 0.0015);
+  let samledeOmkostninger = tinglysningFast + tinglysningVariabel + kurtage + gebyrerInstitutOgBank;
 
-  // 3. New bond issuance
-  // New nominal debt needed to raise samletKontantbehov at the new bond's market price
-  const nyHovedstol = (samletKontantbehov / newLoan.kurs) * 100;
+  // Refine once with exact variable registration fee and brokerage included
+  samletKontantbehov = indfrielsesBeloeb + Math.max(0, frivaerdiUdbetalt) + samledeOmkostninger;
+  nyHovedstol = (samletKontantbehov / newLoan.kurs) * 100;
+  tinglysningVariabel = Math.ceil((Math.max(0, nyHovedstol - existingRestgaeld) * 0.0145) / 100) * 100;
+  kurtage = Math.round(samletKontantbehov * 0.0015);
+  samledeOmkostninger = tinglysningFast + tinglysningVariabel + kurtage + gebyrerInstitutOgBank;
+  samletKontantbehov = indfrielsesBeloeb + Math.max(0, frivaerdiUdbetalt) + samledeOmkostninger;
+  nyHovedstol = (samletKontantbehov / newLoan.kurs) * 100;
+
+  const tinglysningTotal = tinglysningFast + tinglysningVariabel;
   const kurstabOptagelse = Math.max(0, nyHovedstol - samletKontantbehov);
+
+  // In Option 1, the requested friværdi is what is paid out in net cash to the borrower's account:
+  const nettoUdbetalt = Math.max(0, frivaerdiUdbetalt);
+
+  const fees = {
+    tinglysningFast,
+    tinglysningVariabel,
+    tinglysningTotal,
+    kurtage,
+    gebyrerInstitutOgBank,
+    samledeOmkostninger,
+    nettoUdbetalt,
+  };
 
   // LTV calculation
   const calculateLtvRange = (loanAmount: number): [number, number] => {
@@ -60,34 +95,8 @@ export function calculateRefinancing(
   );
 
   const deltaRestgaeld = nyHovedstol - existingRestgaeld;
-  // Effective net capital gain/loss (excluding cash withdrawn):
+  // Effective net capital gain/loss (excluding cash withdrawn and financed fees):
   const kursgevinstEllerTab = existingRestgaeld - (nyHovedstol - frivaerdiUdbetalt);
-
-  // 4. Closing costs & fees (Omkostninger & Gebyrer)
-  // Tinglysningsafgiftsloven § 5a: Fast afgift 1.825 kr + 1,45% af hovedstolsforhøjelse (afrundet op til nærmeste 100 kr)
-  const tinglysningFast = 1_825;
-  const hovedstolForhoejelse = Math.max(0, nyHovedstol - existingRestgaeld);
-  const tinglysningVariabel = Math.ceil((hovedstolForhoejelse * 0.0145) / 100) * 100;
-  const tinglysningTotal = tinglysningFast + tinglysningVariabel;
-
-  // Kurtage: 0,15% af kursværdi på nye obligationer
-  const kurtage = Math.round(samletKontantbehov * 0.0015);
-
-  // Institut- og bankgebyrer (lånesagsgebyr, stiftelse, ekspedition, indfrielse)
-  const gebyrerInstitutOgBank = 8_500;
-
-  const samledeOmkostninger = tinglysningTotal + kurtage + gebyrerInstitutOgBank;
-  const nettoUdbetalt = Math.max(0, frivaerdiUdbetalt - samledeOmkostninger);
-
-  const fees = {
-    tinglysningFast,
-    tinglysningVariabel,
-    tinglysningTotal,
-    kurtage,
-    gebyrerInstitutOgBank,
-    samledeOmkostninger,
-    nettoUdbetalt,
-  };
 
   return {
     existingLoan,
