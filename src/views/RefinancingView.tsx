@@ -106,29 +106,28 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
     }
   }, [maxExistingYears, remainingYears, setRemainingYears]);
 
-  // Maximum years possible for the selected new bond
+  // Maximum years possible for the selected new bond based on actual maturity year (2049 = 23 years in 2026)
   const maxNewLoanYears = useMemo(() => {
     if (!activeNew) return 30;
-    if (activeNew.loebetid) return activeNew.loebetid;
     const currentYear = 2026;
     let maturityYear: number | undefined = activeNew.udloebsAar;
     if (!maturityYear) {
       const match = activeNew.name.match(/\b(20\d\d)\b/);
       if (match) maturityYear = parseInt(match[1], 10);
     }
+
     if (maturityYear) {
       return Math.max(1, Math.min(30, maturityYear - currentYear));
+    }
+    if (activeNew.loebetid) {
+      return Math.max(1, Math.min(30, activeNew.loebetid));
     }
     return 30;
   }, [activeNew]);
 
   // Update newLoanYears when new loan changes or if it exceeds maxNewLoanYears
   useEffect(() => {
-    if (activeNew?.loebetid) {
-      setNewLoanYears(Math.min(activeNew.loebetid, maxNewLoanYears));
-    } else {
-      setNewLoanYears((prev) => Math.min(prev, maxNewLoanYears));
-    }
+    setNewLoanYears((prev) => Math.min(prev, maxNewLoanYears));
   }, [activeNew, maxNewLoanYears]);
 
   // Maximum equity payout at 80% LTV
