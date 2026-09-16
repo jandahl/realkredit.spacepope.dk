@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { BondLoan } from '../calculator/types';
+import type { BondLoan, LoanAmortizationResult, QuarterlyScheduleRow } from '../calculator/types';
 import { calculateRefinancing } from '../calculator/refinancing';
 import { calculateTillaegslaanComparison } from '../calculator/tillaegslaan';
 import { CurrencyInput } from '../components/CurrencyInput';
@@ -283,6 +283,65 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
     return null;
   }, [comparison]);
 
+  // Option B combined schedule for amortization table
+  const optionBSchedule = useMemo<LoanAmortizationResult | null>(() => {
+    if (!tillaegslaanComparison || !comparison) return null;
+    const existing = comparison.existingSchedule;
+    const tillaeg = tillaegslaanComparison.optionB_tillaegslaan.tillaegSchedule;
+
+    const totalQuarters = Math.max(existing.totalQuarters, tillaeg.totalQuarters);
+    const schedule: QuarterlyScheduleRow[] = [];
+
+    for (let q = 0; q < totalQuarters; q++) {
+      const eRow = existing.schedule[q];
+      const tRow = tillaeg.schedule[q];
+
+      const quarter = q + 1;
+      const year = Math.floor(q / 4) + 1;
+      const quarterOfYear = (q % 4) + 1;
+
+      const startRestgaeld = (eRow?.startRestgaeld ?? 0) + (tRow?.startRestgaeld ?? 0);
+      const rente = (eRow?.rente ?? 0) + (tRow?.rente ?? 0);
+      const bidrag = (eRow?.bidrag ?? 0) + (tRow?.bidrag ?? 0);
+      const afdrag = (eRow?.afdrag ?? 0) + (tRow?.afdrag ?? 0);
+      const ydelseFoerSkat = (eRow?.ydelseFoerSkat ?? 0) + (tRow?.ydelseFoerSkat ?? 0);
+      const skatFradrag = (eRow?.skatFradrag ?? 0) + (tRow?.skatFradrag ?? 0);
+      const ydelseEfterSkat = (eRow?.ydelseEfterSkat ?? 0) + (tRow?.ydelseEfterSkat ?? 0);
+      const endRestgaeld = (eRow?.endRestgaeld ?? 0) + (tRow?.endRestgaeld ?? 0);
+
+      schedule.push({
+        quarter,
+        year,
+        quarterOfYear,
+        startRestgaeld,
+        rente,
+        bidrag,
+        afdrag,
+        ydelseFoerSkat,
+        skatFradrag,
+        ydelseEfterSkat,
+        endRestgaeld,
+      });
+    }
+
+    return {
+      hovedstol: existing.hovedstol + tillaeg.hovedstol,
+      kursvaerdi: existing.kursvaerdi + tillaeg.kursvaerdi,
+      kurs: existing.kurs,
+      rente: existing.rente,
+      afdragsfriQuarters: Math.max(existing.afdragsfriQuarters, tillaeg.afdragsfriQuarters),
+      totalQuarters,
+      bidragsSats: existing.bidragsSats,
+      monthlyYdelse: existing.monthlyYdelse + tillaeg.monthlyYdelse,
+      monthlyYdelseEfterSkat: existing.monthlyYdelseEfterSkat + tillaeg.monthlyYdelseEfterSkat,
+      monthlyAfdrag: existing.monthlyAfdrag + tillaeg.monthlyAfdrag,
+      monthlyRenteOgBidrag: existing.monthlyRenteOgBidrag + tillaeg.monthlyRenteOgBidrag,
+      totalRenteOgBidrag: existing.totalRenteOgBidrag + tillaeg.totalRenteOgBidrag,
+      totalBetalt: existing.totalBetalt + tillaeg.totalBetalt,
+      schedule,
+    };
+  }, [tillaegslaanComparison]);
+
   if (!activeExisting || !activeNew || !comparison) {
     return <div className="p-8 text-center text-slate-500 dark:text-slate-400">Indlæser lånedata...</div>;
   }
@@ -561,9 +620,16 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
           {(() => {
             const hasGevinst = comparison.kursgevinstIndfrielse > 0;
             const hasTab = comparison.kurstabOptagelse > 0;
+            const isFlex = Boolean(activeNew.flex) || activeNew.name.toLowerCase().includes('f-kort');
             // Net kurs-effekt: indfrielsesgevinst minus optagelsestab
             const netKursEffekt = comparison.kursgevinstIndfrielse - comparison.kurstabOptagelse;
             const isNetPositive = netKursEffekt >= 0;
+
+            let badgeTitle = 'Netto Kurseffekt';
+            if (hasGevinst && hasTab) badgeTitle = 'Netto Kurseffekt';
+            else if (hasGevinst) badgeTitle = 'Kursgevinst ved Indfrielse';
+            else if (hasTab) badgeTitle = 'Kurstab ved Optagelse';
+            else badgeTitle = isFlex ? 'F-kort Optages til Kurs 100' : 'Optaget til Kurs 100';
 
             return (
               <div
@@ -587,11 +653,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
                     ) : (
                       <TrendingUp className="h-3.5 w-3.5" />
                     )}
-                    {hasGevinst && hasTab
-                      ? 'Netto Kurseffekt'
-                      : hasGevinst
-                      ? 'Kursgevinst ved Indfrielse'
-                      : 'Kurstab ved Optagelse'}
+                    {badgeTitle}
                   </span>
                   <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                     Obligationskurs
@@ -610,6 +672,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
                     {hasGevinst && !hasTab && formatKr(comparison.kursgevinstIndfrielse)}
                     {!hasGevinst && hasTab && formatKr(comparison.kurstabOptagelse)}
                     {hasGevinst && hasTab && `${isNetPositive ? '+' : ''}${formatKr(netKursEffekt)}`}
+                    {!hasGevinst && !hasTab && '0 kr. (Kurs 100)'}
                   </div>
                   <div className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">
                     {hasGevinst && hasTab && (
@@ -618,10 +681,20 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
                       </span>
                     )}
                     {hasGevinst && !hasTab && (
-                      <span>Gammel gæld indfries til under kurs 100 (kurs {formatKurs(redemptionPrice)})</span>
+                      <span>
+                        Gammel gæld indfries til under kurs 100 (kurs {formatKurs(redemptionPrice)}).
+                        {isFlex ? ' Nyt F-kort lån optages til kurs 100 uden kurstab.' : ''}
+                      </span>
                     )}
                     {!hasGevinst && hasTab && (
                       <span>Nye obligationer udstedes under kurs 100 (kurs {formatKurs(comparison.newKurs)})</span>
+                    )}
+                    {!hasGevinst && !hasTab && (
+                      <span>
+                        {isFlex
+                          ? 'F-kort / variabelt lån optages til parikurs (kurs 100) uden tab af provenu.'
+                          : 'Begge lån handles/indfries til parikurs (kurs 100).'}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -641,10 +714,15 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
                   ) : hasGevinst ? (
                     <>
                       <strong className="text-emerald-800 dark:text-emerald-300">Gældsskær:</strong> Du sparer {formatKr(comparison.kursgevinstIndfrielse)} direkte da dine gamle obligationer handles under pari.
+                      {isFlex && ' Nyt F-kort lån udstedes til kurs 100 (pari) med 0 kr. i kurstab.'}
+                    </>
+                  ) : hasTab ? (
+                    <>
+                      <strong className="text-amber-800 dark:text-amber-300">Kurstab:</strong> Du mister {formatKr(comparison.kurstabOptagelse)} i provenu, som lægges oveni obligationshovedstolen.
                     </>
                   ) : (
                     <>
-                      <strong className="text-amber-800 dark:text-amber-300">Kurstab:</strong> Du mister {formatKr(comparison.kurstabOptagelse)} i provenu, som lægges oveni obligationshovedstolen.
+                      <strong className="text-emerald-800 dark:text-emerald-300">Ingen kurstab ved optagelse:</strong> {isFlex ? 'F-kort / variabelt lån udstedes til parikurs (kurs 100). Intet provenu mistes ved optagelsen.' : 'Lånet optages og indfries til kurs 100.'}
                     </>
                   )}
                 </div>
@@ -751,9 +829,16 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       <div className="space-y-4">
         <AmortizationTable
           calculation={comparison.newSchedule}
-          title={`Annuitetstabel for Nyt Lån (${activeNew.name} - ${comparison.newYears} år)`}
+          title={`Annuitetstabel for Option A: Nyt Lån (${activeNew.name} - ${comparison.newYears} år)`}
           defaultOpen={false}
         />
+        {optionBSchedule && (
+          <AmortizationTable
+            calculation={optionBSchedule}
+            title={`Annuitetstabel for Option B: Nuværende Lån + Tillægslån (${activeExisting.name} + ${activeNew.name})`}
+            defaultOpen={false}
+          />
+        )}
         <AmortizationTable
           calculation={comparison.existingSchedule}
           title={`Annuitetstabel for Nuværende Lån (${activeExisting.name} - ${comparison.existingYears} år)`}
