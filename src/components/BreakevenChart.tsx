@@ -7,6 +7,7 @@ interface BreakevenChartProps {
   existingSchedule: LoanAmortizationResult;
   newSchedule: LoanAmortizationResult;
   maxYears: number;
+  frivaerdiUdbetalt?: number;
   onOpenDumbIdeas?: () => void;
 }
 
@@ -14,6 +15,7 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
   existingSchedule,
   newSchedule,
   maxYears,
+  frivaerdiUdbetalt = 0,
   onOpenDumbIdeas,
 }) => {
   const [hoveredQuarter, setHoveredQuarter] = useState<number | null>(null);
@@ -21,7 +23,7 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
   const totalQuarters = Math.round(maxYears * 4);
 
   // Compute quarter-by-quarter breakeven data:
-  // deltaRestgaeld = newRestgaeld - oldRestgaeld
+  // deltaRestgaeld = (newRestgaeld - frivaerdiUdbetalt) - oldRestgaeld
   // deltaYdelse = newYdelseEfterSkat - oldYdelseEfterSkat
   // cumsumDeltaYdelse = sum of deltaYdelse up to quarter q
   // breakevenBalance = cumsumDeltaYdelse + deltaRestgaeld
@@ -35,8 +37,10 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
       balance: number;
     }[] = [];
 
+    const effectiveCashout = frivaerdiUdbetalt || 0;
+
     // Quarter 0 (instant conversion result before first payment)
-    const initialDeltaRestgaeld = newSchedule.hovedstol - existingSchedule.hovedstol;
+    const initialDeltaRestgaeld = (newSchedule.hovedstol - effectiveCashout) - existingSchedule.hovedstol;
     points.push({
       quarter: 0,
       year: 0,
@@ -60,14 +64,15 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
       const deltaYdelse = newRow.ydelseEfterSkat - oldRow.ydelseEfterSkat;
       cumsum += deltaYdelse;
 
-      const deltaRest = newRow.endRestgaeld - oldRow.endRestgaeld;
+      const deltaRest = (newRow.endRestgaeld - effectiveCashout) - oldRow.endRestgaeld;
       const balance = cumsum + deltaRest;
 
-      if (crossingQuarter === null && points[points.length - 1].balance < 0 && balance >= 0) {
-        // Linear interpolation for exact crossing
-        const prevBal = points[points.length - 1].balance;
-        const fraction = -prevBal / (balance - prevBal);
-        crossingQuarter = q + fraction;
+      const prevBal = points[points.length - 1].balance;
+      if (crossingQuarter === null && points.length > 0) {
+        if ((prevBal < 0 && balance >= 0) || (prevBal > 0 && balance <= 0)) {
+          const fraction = Math.abs(prevBal) / Math.abs(balance - prevBal);
+          crossingQuarter = q + fraction;
+        }
       }
 
       points.push({
@@ -83,7 +88,7 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
       dataPoints: points,
       breakevenCrossing: crossingQuarter,
     };
-  }, [existingSchedule, newSchedule, totalQuarters]);
+  }, [existingSchedule, newSchedule, totalQuarters, frivaerdiUdbetalt]);
 
   // Dimensions
   const width = 800;

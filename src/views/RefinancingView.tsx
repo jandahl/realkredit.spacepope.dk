@@ -143,7 +143,10 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       if (!activeExisting.afdragsfri) {
         setExistingAfdragsfriYears(0);
       } else {
-        setExistingAfdragsfriYears((prev) => Math.min(prev === 0 ? 10 : prev, remainingYears, 10));
+        const maxOriginalAfdragsfri = activeExisting.name.includes('30 års afdragsfri') ? 30 : 10;
+        const elapsedYears = Math.max(0, 30 - remainingYears);
+        const remainingAfdragsfri = Math.max(0, Math.min(remainingYears, maxOriginalAfdragsfri - elapsedYears));
+        setExistingAfdragsfriYears(remainingAfdragsfri);
       }
     }
   }, [activeExisting, remainingYears]);
@@ -980,6 +983,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
         existingSchedule={comparison.existingSchedule}
         newSchedule={comparison.newSchedule}
         maxYears={comparison.maxYears}
+        frivaerdiUdbetalt={comparison.frivaerdiUdbetalt}
         onOpenDumbIdeas={() => setShowDumbIdeas(true)}
       />
 
