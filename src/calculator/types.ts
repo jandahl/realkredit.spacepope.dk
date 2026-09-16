@@ -115,3 +115,35 @@ export interface TwoLayerLoanResult {
   combinedTotalBetalt: number;
   combinedSchedule: QuarterlyScheduleRow[];
 }
+
+export interface TillaegslaanComparison {
+  // Option A: Full Remortgage (Fuldt omlægningslån)
+  optionA_fullOmlaegning: {
+    nyHovedstol: number;
+    monthlyYdelseEfterSkat: number;
+    monthlyYdelseFoerSkat: number;
+    totalOmkostninger: number;
+    schedule: LoanAmortizationResult;
+  };
+
+  // Option B: Keep Existing 1st Mortgage + Issue Tillægslån (Secondary Mortgage)
+  optionB_tillaegslaan: {
+    existingMonthlyYdelseEfterSkat: number;
+    tillaegHovedstol: number;
+    tillaegMonthlyYdelseEfterSkat: number;
+    tillaegMonthlyYdelseFoerSkat: number;
+    tillaegOmkostninger: number;
+    tillaegLtvRange: [number, number];
+    combinedMonthlyYdelseEfterSkat: number;
+    combinedMonthlyYdelseFoerSkat: number;
+    tillaegSchedule: LoanAmortizationResult;
+  };
+
+  // Comparison & Savings (Option B vs Option A)
+  monthlySavingsOptionB: number; // Positive means Option B (Tillægslån) is cheaper per month
+  yearlySavingsOptionB: number;
+  totalCostDiffOptionB: number; // Positive means Option B has lower total costs over full term
+  recommendedStrategy: 'tillaegslaan' | 'full_omlaegning' | 'neutral';
+  recommendationReason: string;
+}
+

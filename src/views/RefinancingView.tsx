@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { BondLoan } from '../calculator/types';
 import { calculateRefinancing } from '../calculator/refinancing';
+import { calculateTillaegslaanComparison } from '../calculator/tillaegslaan';
 import { CurrencyInput } from '../components/CurrencyInput';
 import { DependentLoanSelect } from '../components/DependentLoanSelect';
 import { MetricCard } from '../components/MetricCard';
@@ -8,6 +9,7 @@ import { AmortizationTable } from '../components/AmortizationTable';
 import { LoanChart, type ChartSeries } from '../components/LoanChart';
 import { BreakevenChart } from '../components/BreakevenChart';
 import { DumbIdeasModal } from '../components/DumbIdeasModal';
+import { TillaegslaanComparator } from '../components/TillaegslaanComparator';
 import { formatKr, formatKurs } from '../utils/formatters';
 import { Sparkles, Banknote, HelpCircle, ChevronDown, ChevronUp, Receipt, Lightbulb, TrendingUp, TrendingDown } from 'lucide-react';
 
@@ -129,6 +131,19 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       remainingYears,
       newLoanYears,
       effectiveFrivaerdi
+    );
+  }, [activeExisting, activeNew, debt, propertyValue, remainingYears, newLoanYears, effectiveFrivaerdi]);
+
+  const tillaegslaanComparison = useMemo(() => {
+    if (!activeExisting || !activeNew) return null;
+    return calculateTillaegslaanComparison(
+      activeExisting,
+      debt,
+      activeNew,
+      propertyValue,
+      remainingYears,
+      newLoanYears,
+      effectiveFrivaerdi > 0 ? effectiveFrivaerdi : 200_000
     );
   }, [activeExisting, activeNew, debt, propertyValue, remainingYears, newLoanYears, effectiveFrivaerdi]);
 
@@ -637,6 +652,16 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
           }}
         />
       </div>
+
+      {/* Tillægslån vs Fuld Omlægning Comparator */}
+      {tillaegslaanComparison && (
+        <TillaegslaanComparator
+          comparison={tillaegslaanComparison}
+          existingLoan={activeExisting}
+          newLoan={activeNew}
+          desiredCashout={effectiveFrivaerdi > 0 ? effectiveFrivaerdi : 200_000}
+        />
+      )}
 
       {/* Breakeven Graph (scaled to longest loan duration) */}
       <BreakevenChart
