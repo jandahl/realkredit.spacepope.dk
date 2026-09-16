@@ -7,6 +7,8 @@ export interface ChartSeries {
   color: string;
   strokeDash?: string;
   data: number[]; // Index corresponds to year (e.g. 0 to 30)
+  uncertaintyUpper?: number[]; // Upper bound for variable rate uncertainty (e.g. F-kort)
+  uncertaintyLower?: number[]; // Lower bound for variable rate uncertainty
 }
 
 interface LoanChartProps {
@@ -74,7 +76,7 @@ export const LoanChart: React.FC<LoanChartProps> = ({
     return ticks;
   }, [years, plotWidth, padding.left]);
 
-  // Calculate SVG polyline points for each series
+  // Calculate SVG polyline points and uncertainty bands for each series
   const seriesPaths = useMemo(() => {
     return series.map((s) => {
       const points = s.data.map((val, year) => {
@@ -89,10 +91,28 @@ export const LoanChart: React.FC<LoanChartProps> = ({
       const bottomY = padding.top + plotHeight;
       const areaPath = `M ${points.join(' L ')} L ${lastX},${bottomY} L ${firstX},${bottomY} Z`;
 
+      let uncertaintyPath: string | null = null;
+      if (s.uncertaintyUpper && s.uncertaintyLower) {
+        const upperPts = s.uncertaintyUpper.map((val, year) => {
+          const x = padding.left + (year / years) * plotWidth;
+          const y = padding.top + plotHeight - (Math.max(0, val) / maxValue) * plotHeight;
+          return `${x},${y}`;
+        });
+
+        const lowerPts = s.uncertaintyLower.map((val, year) => {
+          const x = padding.left + (year / years) * plotWidth;
+          const y = padding.top + plotHeight - (Math.max(0, val) / maxValue) * plotHeight;
+          return `${x},${y}`;
+        }).reverse();
+
+        uncertaintyPath = `M ${upperPts.join(' L ')} L ${lowerPts.join(' L ')} Z`;
+      }
+
       return {
         ...s,
         points: points.join(' '),
         areaPath,
+        uncertaintyPath,
       };
     });
   }, [series, years, plotWidth, plotHeight, padding.left, padding.top, maxValue]);
@@ -215,6 +235,17 @@ export const LoanChart: React.FC<LoanChartProps> = ({
           {/* Series Areas and Lines */}
           {seriesPaths.map((s) => (
             <g key={s.id}>
+              {s.uncertaintyPath && (
+                <path
+                  d={s.uncertaintyPath}
+                  fill={s.color}
+                  fillOpacity="0.18"
+                  stroke={s.color}
+                  strokeWidth="1"
+                  strokeDasharray="2 2"
+                  className="transition-opacity"
+                />
+              )}
               <path
                 d={s.areaPath}
                 fill={s.color}

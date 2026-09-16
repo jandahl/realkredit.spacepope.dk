@@ -191,12 +191,25 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       }
     }
 
+    const isNewFlex = Boolean(activeNew.flex) || activeNew.name.toLowerCase().includes('f-kort');
+
+    // Uncertainty band for variable rate (F-kort / Flex): rate volatility assumption (+/- 2% widening over time)
+    let newUpper: number[] | undefined;
+    let newLower: number[] | undefined;
+
+    if (isNewFlex) {
+      newUpper = newData.map((val, y) => val > 0 ? Math.min(val * (1 + 0.015 * y), val * 1.35) : 0);
+      newLower = newData.map((val, y) => val > 0 ? Math.max(0, val * (1 - 0.015 * y)) : 0);
+    }
+
     const seriesList: ChartSeries[] = [
       {
         id: 'new',
         name: `Nyt lån (${activeNew.name} - ${comparison.newYears} år)`,
         color: '#2563eb', // Blue
         data: newData,
+        uncertaintyUpper: newUpper,
+        uncertaintyLower: newLower,
       },
       {
         id: 'existing',
@@ -224,12 +237,22 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
         tillaegData.push(existingRest + tillaegRest);
       }
 
+      let tillaegUpper: number[] | undefined;
+      let tillaegLower: number[] | undefined;
+
+      if (isNewFlex) {
+        tillaegUpper = tillaegData.map((val, y) => val > 0 ? val + (val - existingData[Math.min(y, existingData.length - 1)]) * 0.015 * y : 0);
+        tillaegLower = tillaegData.map((val, y) => val > 0 ? Math.max(0, val - (val - existingData[Math.min(y, existingData.length - 1)]) * 0.015 * y) : 0);
+      }
+
       seriesList.push({
         id: 'tillaegslaan',
         name: `Option B: Behold ${activeExisting.name} + Tillægslån (${activeNew.name})`,
         color: '#10b981', // Emerald green
         strokeDash: '3 3',
         data: tillaegData,
+        uncertaintyUpper: tillaegUpper,
+        uncertaintyLower: tillaegLower,
       });
     }
 
@@ -743,6 +766,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
         isOpen={showDumbIdeas}
         onClose={() => setShowDumbIdeas(false)}
         comparison={comparison}
+        tillaegslaanComparison={tillaegslaanComparison}
         breakevenYears={breakevenYears}
       />
     </div>
