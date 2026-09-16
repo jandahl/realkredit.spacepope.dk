@@ -9,7 +9,7 @@ import { LoanChart, type ChartSeries } from '../components/LoanChart';
 import { BreakevenChart } from '../components/BreakevenChart';
 import { DumbIdeasModal } from '../components/DumbIdeasModal';
 import { formatKr, formatKurs } from '../utils/formatters';
-import { Sparkles, Banknote, HelpCircle, ChevronDown, ChevronUp, Receipt, Lightbulb } from 'lucide-react';
+import { Sparkles, Banknote, HelpCircle, ChevronDown, ChevronUp, Receipt, Lightbulb, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface RefinancingViewProps {
   indfrielseLoans: BondLoan[];
@@ -404,29 +404,18 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
           </h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
-          {/* 1. Indfrielse Kursgevinst */}
-          <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/40 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20">
-            <div className="text-xs font-semibold uppercase text-emerald-800 dark:text-emerald-300">
-              Kursgevinst ved indfrielse
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2 items-stretch">
+          {/* 1. Tillægslån / Udbetaling */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-5 dark:border-slate-800 dark:bg-slate-800/40 flex flex-col justify-between">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Udbetalt til din konto
+              </div>
+              <div className="mt-2 text-2xl font-bold text-slate-900 dark:text-slate-100">
+                {formatKr(comparison.frivaerdiUdbetalt)}
+              </div>
             </div>
-            <div className="mt-1 text-2xl font-bold text-emerald-700 dark:text-emerald-400">
-              {formatKr(comparison.kursgevinstIndfrielse)}
-            </div>
-            <div className="mt-2 text-xs text-emerald-900/80 dark:text-emerald-400/80 leading-relaxed">
-              Dine gamle obligationer indfries til kurs {formatKurs(redemptionPrice)}. For hver 100 kr. pålydende gæld betaler du kun {formatKurs(redemptionPrice)} kr.
-            </div>
-          </div>
-
-          {/* 2. Tillægslån udbetaling */}
-          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-800/40">
-            <div className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
-              Udbetalt til din konto
-            </div>
-            <div className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
-              {formatKr(comparison.frivaerdiUdbetalt)}
-            </div>
-            <div className="mt-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+            <div className="mt-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed border-t border-slate-200/60 dark:border-slate-700/60 pt-2.5">
               {enableFrivaerdi ? (
                 <>
                   Gebyrer ({formatKr(comparison.fees.samledeOmkostninger)}) er medfinansieret i det nye lån.
@@ -437,28 +426,112 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
             </div>
           </div>
 
-          {/* 3. Optagelse Kurstab */}
-          <div className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-4 dark:border-amber-900/50 dark:bg-amber-950/20">
-            <div className="text-xs font-semibold uppercase text-amber-800 dark:text-amber-300">
-              Kurstab ved optagelse
-            </div>
-            <div className="mt-1 text-2xl font-bold text-amber-700 dark:text-amber-400">
-              {formatKr(comparison.kurstabOptagelse)}
-            </div>
-            <div className="mt-2 text-xs text-amber-900/80 dark:text-amber-400/80 leading-relaxed">
-              Nyt lån udstedes til kurs {formatKurs(comparison.newKurs)}. For hver 100 kr. pålydende gæld får du kun {formatKurs(comparison.newKurs)} kr. udbetalt.
-            </div>
-          </div>
+          {/* 2. CENTERPIECE: Kursgevinst vs. Kurstab (Mutex Box - Larger & Colored by Good/Bad) */}
+          {(() => {
+            const hasGevinst = comparison.kursgevinstIndfrielse > 0;
+            const hasTab = comparison.kurstabOptagelse > 0;
+            // Net kurs-effekt: indfrielsesgevinst minus optagelsestab
+            const netKursEffekt = comparison.kursgevinstIndfrielse - comparison.kurstabOptagelse;
+            const isNetPositive = netKursEffekt >= 0;
 
-          {/* 4. Netto ændring i obligationsgæld */}
-          <div className="rounded-xl border border-blue-200/80 bg-blue-50/40 p-4 dark:border-blue-900/50 dark:bg-blue-950/20">
-            <div className="text-xs font-semibold uppercase text-blue-800 dark:text-blue-300">
-              Netto ændring i restgæld
+            return (
+              <div
+                className={`rounded-2xl border-2 p-6 shadow-md transition-all flex flex-col justify-between relative overflow-hidden ${
+                  isNetPositive
+                    ? 'border-emerald-500/80 bg-emerald-50/70 dark:border-emerald-500/60 dark:bg-emerald-950/30'
+                    : 'border-amber-500/80 bg-amber-50/70 dark:border-amber-500/60 dark:bg-amber-950/30'
+                }`}
+              >
+                {/* Header Badge */}
+                <div className="flex items-center justify-between">
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                      isNetPositive
+                        ? 'bg-emerald-200/80 text-emerald-900 dark:bg-emerald-900/60 dark:text-emerald-200'
+                        : 'bg-amber-200/80 text-amber-900 dark:bg-amber-900/60 dark:text-amber-200'
+                    }`}
+                  >
+                    {isNetPositive ? (
+                      <TrendingDown className="h-3.5 w-3.5" />
+                    ) : (
+                      <TrendingUp className="h-3.5 w-3.5" />
+                    )}
+                    {hasGevinst && hasTab
+                      ? 'Netto Kurseffekt'
+                      : hasGevinst
+                      ? 'Kursgevinst ved Indfrielse'
+                      : 'Kurstab ved Optagelse'}
+                  </span>
+                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                    Obligationskurs
+                  </span>
+                </div>
+
+                {/* Amount Display */}
+                <div className="my-3">
+                  <div
+                    className={`text-3xl sm:text-4xl font-black tracking-tight ${
+                      isNetPositive
+                        ? 'text-emerald-700 dark:text-emerald-400'
+                        : 'text-amber-700 dark:text-amber-400'
+                    }`}
+                  >
+                    {hasGevinst && !hasTab && formatKr(comparison.kursgevinstIndfrielse)}
+                    {!hasGevinst && hasTab && formatKr(comparison.kurstabOptagelse)}
+                    {hasGevinst && hasTab && `${isNetPositive ? '+' : ''}${formatKr(netKursEffekt)}`}
+                  </div>
+                  <div className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+                    {hasGevinst && hasTab && (
+                      <span>
+                        Gevinst: <strong className="text-emerald-700 dark:text-emerald-400">{formatKr(comparison.kursgevinstIndfrielse)}</strong> (kurs {formatKurs(redemptionPrice)}) &bull; Tab: <strong className="text-amber-700 dark:text-amber-400">{formatKr(comparison.kurstabOptagelse)}</strong> (kurs {formatKurs(comparison.newKurs)})
+                      </span>
+                    )}
+                    {hasGevinst && !hasTab && (
+                      <span>Gammel gæld indfries til under kurs 100 (kurs {formatKurs(redemptionPrice)})</span>
+                    )}
+                    {!hasGevinst && hasTab && (
+                      <span>Nye obligationer udstedes under kurs 100 (kurs {formatKurs(comparison.newKurs)})</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Explanatory footer */}
+                <div className="text-xs leading-relaxed border-t border-slate-200/80 dark:border-slate-700/80 pt-2.5 text-slate-700 dark:text-slate-300">
+                  {hasGevinst && hasTab ? (
+                    isNetPositive ? (
+                      <>
+                        <strong className="text-emerald-800 dark:text-emerald-300">Fordelagtig skæring:</strong> Gevinsten ved at opkøbe dit gamle lån til kurs {formatKurs(redemptionPrice)} overstiger kurstabet ved at udstede det nye lån til kurs {formatKurs(comparison.newKurs)}.
+                      </>
+                    ) : (
+                      <>
+                        <strong className="text-amber-800 dark:text-amber-300">Netto kurstab:</strong> Kurstabet på {formatKr(comparison.kurstabOptagelse)} ved nyt lån overstiger gevinsten på {formatKr(comparison.kursgevinstIndfrielse)} ved indfrielse.
+                      </>
+                    )
+                  ) : hasGevinst ? (
+                    <>
+                      <strong className="text-emerald-800 dark:text-emerald-300">Gældsskær:</strong> Du sparer {formatKr(comparison.kursgevinstIndfrielse)} direkte da dine gamle obligationer handles under pari.
+                    </>
+                  ) : (
+                    <>
+                      <strong className="text-amber-800 dark:text-amber-300">Kurstab:</strong> Du mister {formatKr(comparison.kurstabOptagelse)} i provenu, som lægges oveni obligationshovedstolen.
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* 3. Netto ændring i obligationsgæld */}
+          <div className="rounded-xl border border-blue-200/80 bg-blue-50/40 p-5 dark:border-blue-900/50 dark:bg-blue-950/20 flex flex-col justify-between">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-blue-800 dark:text-blue-300">
+                Netto ændring i restgæld
+              </div>
+              <div className={`mt-2 text-2xl font-bold ${isDebtReduced ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-100'}`}>
+                {comparison.deltaRestgaeld > 0 ? '+' : ''}{formatKr(comparison.deltaRestgaeld)}
+              </div>
             </div>
-            <div className={`mt-1 text-2xl font-bold ${isDebtReduced ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-100'}`}>
-              {comparison.deltaRestgaeld > 0 ? '+' : ''}{formatKr(comparison.deltaRestgaeld)}
-            </div>
-            <div className="mt-2 text-xs text-blue-900/80 dark:text-blue-400/80 leading-relaxed">
+            <div className="mt-3 text-xs text-blue-900/80 dark:text-blue-400/80 leading-relaxed border-t border-blue-200/60 dark:border-blue-900/40 pt-2.5">
               Ny hovedstol: {formatKr(comparison.nyHovedstol)} (mod tidligere {formatKr(comparison.existingRestgaeld)}).
             </div>
           </div>
