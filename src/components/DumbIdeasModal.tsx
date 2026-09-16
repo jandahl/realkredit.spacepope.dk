@@ -35,52 +35,74 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
   const {
     existingLoan,
     newLoan,
-    nyHovedstol,
-    deltaRestgaeld,
-    deltaMonthlyYdelseEfterSkat,
     fees,
   } = comparison;
 
+  const isTillaegActive = activeStrategy === 'tillaeg' && Boolean(tillaegslaanComparison);
+
+  // Strategy-dependent metrics
+  const activeNyHovedstol = isTillaegActive && tillaegslaanComparison
+    ? comparison.existingRestgaeld + tillaegslaanComparison.optionB_tillaegslaan.tillaegHovedstol
+    : comparison.nyHovedstol;
+
+  const activeDeltaRestgaeld = isTillaegActive && tillaegslaanComparison
+    ? tillaegslaanComparison.optionB_tillaegslaan.tillaegHovedstol
+    : comparison.deltaRestgaeld;
+
+  const activeDeltaMonthlyYdelseEfterSkat = isTillaegActive && tillaegslaanComparison
+    ? tillaegslaanComparison.optionB_tillaegslaan.tillaegMonthlyYdelseEfterSkat
+    : comparison.deltaMonthlyYdelseEfterSkat;
+
+  const activeFees = isTillaegActive && tillaegslaanComparison
+    ? tillaegslaanComparison.optionB_tillaegslaan.tillaegOmkostninger
+    : fees.samledeOmkostninger;
+
+  const activeKursgevinstIndfrielse = isTillaegActive ? 0 : comparison.kursgevinstIndfrielse;
+
+  const activeKurstabOptagelse = isTillaegActive && tillaegslaanComparison
+    ? Math.max(0, tillaegslaanComparison.optionB_tillaegslaan.tillaegHovedstol - (tillaegslaanComparison.optionB_tillaegslaan.tillaegHovedstol * newLoan.kurs / 100))
+    : comparison.kurstabOptagelse;
+
   const renteDiff = Number((newLoan.rente - existingLoan.rente).toFixed(2));
-  const isOpkonvertering = renteDiff > 0;
-  const isNedkonvertering = renteDiff < 0;
+  const isOpkonvertering = !isTillaegActive && renteDiff > 0;
+  const isNedkonvertering = !isTillaegActive && renteDiff < 0;
 
   const newKurs = newLoan.kurs;
 
-  // Common Danish rules of thumb evaluation:
-  // 1. Omkostninger i forhold til gevinst/ændring:
-  // For opkonvertering: Omkostninger som procent af kursgevinsten ved indfrielse
-  // For nedkonvertering: Omkostninger i forhold til årlig likviditetsbesparelse (antal år at tjene hjem)
-  const annualSavings = Math.max(1, Math.abs(deltaMonthlyYdelseEfterSkat) * 12);
-  const feeImpactPercent = isOpkonvertering
-    ? (comparison.kursgevinstIndfrielse > 0 ? (fees.samledeOmkostninger / comparison.kursgevinstIndfrielse) * 100 : 100)
-    : isNedkonvertering
-    ? (fees.samledeOmkostninger / annualSavings)
-    : 0;
+  // Evaluation metrics:
+  const annualSavings = Math.max(1, Math.abs(activeDeltaMonthlyYdelseEfterSkat) * 12);
+  let feeImpactPercent = 0;
+  if (isTillaegActive && tillaegslaanComparison) {
+    feeImpactPercent = (activeFees / Math.max(1, tillaegslaanComparison.optionB_tillaegslaan.tillaegHovedstol)) * 100;
+  } else if (isOpkonvertering) {
+    feeImpactPercent = activeKursgevinstIndfrielse > 0 ? (activeFees / activeKursgevinstIndfrielse) * 100 : 100;
+  } else if (isNedkonvertering) {
+    feeImpactPercent = activeFees / annualSavings;
+  }
 
-  const isFeeProportionHealthy = isOpkonvertering
-    ? feeImpactPercent <= 10.0 // Costs shouldn't eat more than 10% of debt cut
+  const isFeeProportionHealthy = isTillaegActive
+    ? feeImpactPercent <= 6.0
+    : isOpkonvertering
+    ? feeImpactPercent <= 10.0
     : isNedkonvertering
-    ? feeImpactPercent <= 3.0 // Costs should be earned back within 3 years of savings
+    ? feeImpactPercent <= 3.0
     : true;
 
-  // 2. Renteforskel rule of thumb:
-  // - Opkonvertering: renteforskel should ideally be >= +1.5%
-  // - Nedkonvertering: renteforskel should ideally be <= -1.0% to -1.5%
   const meetsRateThreshold = isOpkonvertering 
     ? renteDiff >= 1.5 
     : isNedkonvertering 
     ? renteDiff <= -1.0 
+    : isTillaegActive
+    ? true
     : false;
 
-  // 3. Kurs rule of thumb on new loan:
-  // New loan price should ideally be >= 95-96 to avoid heavy kurstab
   const isGoodNewKurs = newKurs >= 95.0;
 
-  // Breakeven horizon evaluation
-  const hasSensibleBreakeven = isOpkonvertering 
-    ? (breakevenYears !== null && breakevenYears >= 7) // You want many years before higher ydelse eats your debt reduction!
-    : (breakevenYears !== null && breakevenYears <= 8); // For nedkonvertering, you want costs earned back quickly
+  const hasSensibleBreakeven = isTillaegActive
+    ? true
+    : isOpkonvertering 
+    ? (breakevenYears !== null && breakevenYears >= 7)
+    : (breakevenYears !== null && breakevenYears <= 8);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-hidden">
@@ -109,7 +131,9 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Konsekvenser og tommelfingerregler for {existingLoan.name} &rarr; {newLoan.name}
+                {isTillaegActive
+                  ? `Option B: Behold ${existingLoan.name} intact + tillægslån i ${newLoan.name}`
+                  : `Option A: Fuld omlægning fra ${existingLoan.name} → ${newLoan.name}`}
               </p>
             </div>
           </div>
@@ -160,39 +184,46 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
           <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-800/40 p-5 space-y-3">
             <h4 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Compass className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              Hvis du gennemfører denne omlægning nu:
+              {isTillaegActive ? 'Konsekvens ved Option B (Behold 1. prioritet + Tillægslån):' : 'Konsekvens ved Option A (Fuld omlægning):'}
             </h4>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <div className="rounded-lg border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-900 p-3.5 flex flex-col justify-between">
                 <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Kort sigt (måned til måned)</span>
                 <div className="mt-1">
-                  <div className={`text-base font-bold ${deltaMonthlyYdelseEfterSkat <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                    {deltaMonthlyYdelseEfterSkat > 0 ? '+' : ''}{formatKr(deltaMonthlyYdelseEfterSkat)}/md.
+                  <div className={`text-base font-bold ${activeDeltaMonthlyYdelseEfterSkat <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                    {activeDeltaMonthlyYdelseEfterSkat > 0 ? '+' : ''}{formatKr(activeDeltaMonthlyYdelseEfterSkat)}/md.
                   </div>
                   <p className="mt-1 text-xs text-slate-600 dark:text-slate-400 leading-normal">
-                    {deltaMonthlyYdelseEfterSkat > 0
-                      ? `Din månedlige ydelse efter skat stiger med ${formatKr(deltaMonthlyYdelseEfterSkat)}. Dit månedlige rådighedsbeløb bliver strammere.`
-                      : `Din månedlige ydelse falder med ${formatKr(Math.abs(deltaMonthlyYdelseEfterSkat))}. Du sparer ${formatKr(Math.abs(deltaMonthlyYdelseEfterSkat) * 12)} om året.`}
+                    {isTillaegActive ? (
+                      `Din månedlige ydelse øges med ${formatKr(activeDeltaMonthlyYdelseEfterSkat)} for det nye tillægslån. Dit eksisterende lån forbliver uændret.`
+                    ) : activeDeltaMonthlyYdelseEfterSkat > 0 ? (
+                      `Din månedlige ydelse efter skat stiger med ${formatKr(activeDeltaMonthlyYdelseEfterSkat)}. Dit månedlige rådighedsbeløb bliver strammere.`
+                    ) : (
+                      `Din månedlige ydelse falder med ${formatKr(Math.abs(activeDeltaMonthlyYdelseEfterSkat))}. Du sparer ${formatKr(Math.abs(activeDeltaMonthlyYdelseEfterSkat) * 12)} om året.`
+                    )}
                   </p>
                 </div>
               </div>
 
               <div className="rounded-lg border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-900 p-3.5 flex flex-col justify-between">
-                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Lang sigt (restgæld & breakeven)</span>
+                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Lang sigt (restgæld & omkostninger)</span>
                 <div className="mt-1">
-                  <div className={`text-base font-bold ${deltaRestgaeld <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                    {deltaRestgaeld > 0 ? '+' : ''}{formatKr(deltaRestgaeld)} i restgæld
+                  <div className={`text-base font-bold ${activeDeltaRestgaeld <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                    {activeDeltaRestgaeld > 0 ? '+' : ''}{formatKr(activeDeltaRestgaeld)} i restgæld
                   </div>
                   <p className="mt-1 text-xs text-slate-600 dark:text-slate-400 leading-normal">
-                    {isOpkonvertering
-                      ? breakevenYears 
-                        ? `Du skærer ${formatKr(Math.abs(deltaRestgaeld))} af din restgæld. Breakeven er ca. ${breakevenYears.toFixed(1)} år, hvorefter den højere ydelse har ædt kursgevinsten op.`
-                        : `Gælden falder med ${formatKr(Math.abs(deltaRestgaeld))}.`
-                      : breakevenYears
-                        ? `Din restgæld øges med ${formatKr(deltaRestgaeld)} pga. kurstab og omkostninger (${formatKr(fees.samledeOmkostninger)}). Dette er tjent hjem på ca. ${breakevenYears.toFixed(1)} år.`
-                        : `Din gæld øges med ${formatKr(deltaRestgaeld)}.`
-                    }
+                    {isTillaegActive ? (
+                      `Supplerende restgæld øges med ${formatKr(activeDeltaRestgaeld)}. Stiftelsesomkostninger er kun ${formatKr(activeFees)} (sparer ${formatKr(fees.samledeOmkostninger - activeFees)} mod fuld omlægning).`
+                    ) : isOpkonvertering ? (
+                      breakevenYears 
+                        ? `Du skærer ${formatKr(Math.abs(activeDeltaRestgaeld))} af din restgæld. Breakeven er ca. ${breakevenYears.toFixed(1)} år, hvorefter den højere ydelse har ædt kursgevinsten op.`
+                        : `Gælden falder med ${formatKr(Math.abs(activeDeltaRestgaeld))}.`
+                    ) : breakevenYears ? (
+                      `Din restgæld øges med ${formatKr(activeDeltaRestgaeld)} pga. kurstab og omkostninger (${formatKr(activeFees)}). Dette er tjent hjem på ca. ${breakevenYears.toFixed(1)} år.`
+                    ) : (
+                      `Din gæld øges med ${formatKr(activeDeltaRestgaeld)}.`
+                    )}
                   </p>
                 </div>
               </div>
@@ -210,7 +241,11 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
                   Hvis renten falder fremover
                 </div>
                 <div className="mt-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed space-y-2">
-                  {(Boolean(newLoan.flex) || newLoan.name.toLowerCase().includes('f-kort')) ? (
+                  {isTillaegActive ? (
+                    <p>
+                      <strong className="text-emerald-600 dark:text-emerald-400 font-semibold">Fleksibilitet ved Option B:</strong> Dit oprindelige lån ({existingLoan.name}) er intakt. Hvis renten falder yderligere, kan du til den tid vælge at omlægge hele samlingen til et ny lavrentelån.
+                    </p>
+                  ) : (Boolean(newLoan.flex) || newLoan.name.toLowerCase().includes('f-kort')) ? (
                     <p>
                       <strong className="text-emerald-600 dark:text-emerald-400 font-semibold">Automatisk rentefald ({newLoan.name}):</strong> Dit variabelt forrentede lån tilpasses automatisk hver 6. måned. Hvis markedsrenten falder, får du automatisk en lavere månedlig ydelse uden konverteringsomkostninger.
                     </p>
@@ -220,13 +255,13 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
                     </p>
                   ) : (
                     <p>
-                      <strong className="text-amber-600 dark:text-amber-400 font-semibold">Du kan overveje ny omlægning:</strong> Men husk, at du lige har betalt {formatKr(fees.samledeOmkostninger)} i omkostninger. Hvis du omlægger igen for hurtigt, når de gamle stiftelsesomkostninger ikke at tjene sig hjem.
+                      <strong className="text-amber-600 dark:text-amber-400 font-semibold">Du kan overveje ny omlægning:</strong> Men husk, at du lige har betalt {formatKr(activeFees)} i omkostninger. Hvis du omlægger igen for hurtigt, når de gamle stiftelsesomkostninger ikke at tjene sig hjem.
                     </p>
                   )}
                 </div>
               </div>
               <div className="mt-3 pt-2.5 border-t border-blue-200/60 dark:border-blue-900/40 text-[11px] font-medium text-blue-700 dark:text-blue-400">
-                {(Boolean(newLoan.flex) || newLoan.name.toLowerCase().includes('f-kort')) ? 'Status: F-kort slår igennem direkte på ydelsen uden gebyrer' : isOpkonvertering ? 'Status: Kæmpe gevinst hvis renten falder inden for 3-5 år' : 'Status: Foran på ydelse, men låst af stiftelsesomkostninger'}
+                {isTillaegActive ? 'Status: Sparer gebyrer nu og bevarer lav rente på 1. prioritet' : (Boolean(newLoan.flex) || newLoan.name.toLowerCase().includes('f-kort')) ? 'Status: F-kort slår igennem direkte på ydelsen uden gebyrer' : isOpkonvertering ? 'Status: Kæmpe gevinst hvis renten falder inden for 3-5 år' : 'Status: Foran på ydelse, men låst af stiftelsesomkostninger'}
               </div>
             </div>
 
@@ -238,7 +273,11 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
                   Hvis renten stiger yderligere
                 </div>
                 <div className="mt-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed space-y-2">
-                  {(Boolean(newLoan.flex) || newLoan.name.toLowerCase().includes('f-kort')) ? (
+                  {isTillaegActive ? (
+                    <p>
+                      <strong className="text-emerald-600 dark:text-emerald-400 font-semibold">Begrænset risiko:</strong> Kun tillægslånet ({formatKr(activeDeltaRestgaeld)}) berøres af den nye rente på {newLoan.rente} %. Din primære gæld på {formatKr(comparison.existingRestgaeld)} beholder sin eksisterende rente på {existingLoan.rente} %.
+                    </p>
+                  ) : (Boolean(newLoan.flex) || newLoan.name.toLowerCase().includes('f-kort')) ? (
                     <p>
                       <strong className="text-rose-600 dark:text-rose-400 font-semibold">Variabel renterisiko ({newLoan.name}):</strong> Dit lån har ingen kursbeskyttelse mod rentestigninger. Hvis CITA/CIBOR-renten stiger, stiger din ydelse direkte uden at give dig kursgevinst på restgælden.
                     </p>
@@ -248,13 +287,13 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
                     </p>
                   ) : (
                     <p>
-                      <strong className="text-rose-600 dark:text-rose-400 font-semibold">Bagud på restgæld:</strong> Du sidder med et nyt lån med højere nominel restgæld ({formatKr(nyHovedstol)}) end hvis du var blevet i dit gamle lån.
+                      <strong className="text-rose-600 dark:text-rose-400 font-semibold">Bagud på restgæld:</strong> Du sidder med et nyt lån med højere nominel restgæld ({formatKr(activeNyHovedstol)}) end hvis du var blevet i dit gamle lån.
                     </p>
                   )}
                 </div>
               </div>
               <div className="mt-3 pt-2.5 border-t border-slate-200/80 dark:border-slate-700 text-[11px] font-medium text-slate-600 dark:text-slate-400">
-                {(Boolean(newLoan.flex) || newLoan.name.toLowerCase().includes('f-kort')) ? 'Status: Eksponeret over for rentehop på halvårlige refiksinger' : isOpkonvertering ? 'Status: Kræver aktiv overvågning af rentemarkedet' : 'Status: Sikret på den faste månedlige rentebesparelse'}
+                {isTillaegActive ? 'Status: 1. prioritet er fuldt afskærmet mod nye rentestigninger' : (Boolean(newLoan.flex) || newLoan.name.toLowerCase().includes('f-kort')) ? 'Status: Eksponeret over for rentehop på halvårlige refiksinger' : isOpkonvertering ? 'Status: Kræver aktiv overvågning af rentemarkedet' : 'Status: Sikret på den faste månedlige rentebesparelse'}
               </div>
             </div>
 
@@ -264,7 +303,7 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
           <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-4">
             <h4 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              Tjek mod klassiske tommelfingerregler
+              Tjek mod klassiske tommelfingerregler ({isTillaegActive ? 'Option B' : 'Option A'})
             </h4>
 
             <div className="space-y-3 text-xs">
@@ -273,10 +312,14 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
               <div className="flex items-start justify-between gap-4 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50">
                 <div className="space-y-0.5">
                   <div className="font-semibold text-slate-800 dark:text-slate-200">
-                    1. Omkostninger i forhold til gevinst ({formatKr(fees.samledeOmkostninger)})
+                    1. Omkostninger i forhold til lån/gevinst ({formatKr(activeFees)})
                   </div>
                   <div className="text-slate-500 dark:text-slate-400">
-                    {isOpkonvertering ? (
+                    {isTillaegActive ? (
+                      <>
+                        Gebyrer på <strong>{formatKr(activeFees)}</strong> udgør <strong>{feeImpactPercent.toFixed(1)} %</strong> af tillægslånet på {formatKr(activeDeltaRestgaeld)}. Du sparer <strong>{formatKr(fees.samledeOmkostninger - activeFees)}</strong> i tinglysning og gebyrer sammenlignet med Option A.
+                      </>
+                    ) : isOpkonvertering ? (
                       <>
                         Omkostningerne udgør <strong>{feeImpactPercent.toFixed(1)} %</strong> af din kursgevinst ved indfrielse ({formatKr(comparison.kursgevinstIndfrielse)}).
                         {feeImpactPercent <= 10
@@ -285,14 +328,14 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
                       </>
                     ) : isNedkonvertering ? (
                       <>
-                        Omkostningerne svarer til ca. <strong>{feeImpactPercent.toFixed(1)} års</strong> rentebesparelse ({formatKr(Math.abs(deltaMonthlyYdelseEfterSkat) * 12)}/år efter skat).
+                        Omkostningerne svarer til ca. <strong>{feeImpactPercent.toFixed(1)} års</strong> rentebesparelse ({formatKr(Math.abs(activeDeltaMonthlyYdelseEfterSkat) * 12)}/år efter skat).
                         {feeImpactPercent <= 3
                           ? ' Omkostningerne er hurtigt tjent hjem af den lavere ydelse.'
                           : ' Det tager relativt lang tid alene at tjene stiftelsesomkostningerne hjem.'}
                       </>
                     ) : (
                       <>
-                        Samlede omkostninger på {formatKr(fees.samledeOmkostninger)} skal vurderes mod lånets ændrede vilkår.
+                        Samlede omkostninger på {formatKr(activeFees)} skal vurderes mod lånets ændrede vilkår.
                       </>
                     )}
                   </div>
@@ -302,11 +345,13 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
                     ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' 
                     : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
                 }`}>
-                  {isOpkonvertering 
+                  {isTillaegActive
+                    ? `${feeImpactPercent.toFixed(1)} % af tillægslån ${isFeeProportionHealthy ? '(Lave gebyrer)' : '(Høje gebyrer)'}`
+                    : isOpkonvertering 
                     ? `${feeImpactPercent.toFixed(1)} % af gevinst ${isFeeProportionHealthy ? '(Sundt)' : '(Højt)'}`
                     : isNedkonvertering
                     ? `${feeImpactPercent.toFixed(1)} års besparelse ${isFeeProportionHealthy ? '(Sundt)' : '(Langsomt)'}`
-                    : `${formatKr(fees.samledeOmkostninger)}`}
+                    : `${formatKr(activeFees)}`}
                 </span>
               </div>
 
@@ -314,12 +359,18 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
               <div className="flex items-start justify-between gap-4 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50">
                 <div className="space-y-0.5">
                   <div className="font-semibold text-slate-800 dark:text-slate-200">
-                    2. Renteforskel på mindst {isOpkonvertering ? '+1,5 procentpoint' : '1,0 – 1,5 procentpoint'}
+                    2. Rentestruktur & differentiering
                   </div>
                   <div className="text-slate-500 dark:text-slate-400">
-                    {isOpkonvertering
-                      ? `Ved opkonvertering skal rentestigningen give et markant kursfald for at retfærdiggøre mer-ydelsen.`
-                      : `Ved nedkonvertering skal rentebesparelsen være stor nok til at tjene kurstabet og stiftelsesomkostningerne hjem.`}
+                    {isTillaegActive ? (
+                      <>
+                        Ved tillægslån fastholdes den lave rente på {existingLoan.rente} % på Hovedlånet ({formatKr(comparison.existingRestgaeld)}). Kun tillægslånet ({formatKr(activeDeltaRestgaeld)}) forrentes til {newLoan.rente} %.
+                      </>
+                    ) : isOpkonvertering ? (
+                      `Ved opkonvertering skal rentestigningen give et markant kursfald for at retfærdiggøre mer-ydelsen.`
+                    ) : (
+                      `Ved nedkonvertering skal rentebesparelsen være stor nok til at tjene kurstabet og stiftelsesomkostningerne hjem.`
+                    )}
                   </div>
                 </div>
                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold shrink-0 ${
@@ -327,7 +378,7 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
                     ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' 
                     : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
                 }`}>
-                  {renteDiff > 0 ? `+${renteDiff} %-point` : `${renteDiff} %-point`} {meetsRateThreshold ? '(Godkendt)' : '(Lille forskel)'}
+                  {isTillaegActive ? 'Opsplittet rente (Optimalt)' : renteDiff > 0 ? `+${renteDiff} %-point` : `${renteDiff} %-point`}
                 </span>
               </div>
 
@@ -335,10 +386,18 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
               <div className="flex items-start justify-between gap-4 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50">
                 <div className="space-y-0.5">
                   <div className="font-semibold text-slate-800 dark:text-slate-200">
-                    3. Kurs på nyt lån tæt på 100 (mindst 95-96)
+                    3. Optagelseskurs ({formatKurs(newKurs)})
                   </div>
                   <div className="text-slate-500 dark:text-slate-400">
-                    Når obligationskursen er under 100, lider du et kurstab ved udbetaling. Lige nu er kursen {formatKurs(newKurs)} (kurstab: {formatKr(comparison.kurstabOptagelse)}).
+                    {isTillaegActive ? (
+                      <>
+                        Tillægslånet udstedes til kurs {formatKurs(newKurs)} (kurstab: {formatKr(activeKurstabOptagelse)}). Oprindeligt lån berøres ikke.
+                      </>
+                    ) : (
+                      <>
+                        Når obligationskursen er under 100, lider du et kurstab ved udbetaling. Lige nu er kursen {formatKurs(newKurs)} (kurstab: {formatKr(comparison.kurstabOptagelse)}).
+                      </>
+                    )}
                   </div>
                 </div>
                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold shrink-0 ${
@@ -354,12 +413,18 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
               <div className="flex items-start justify-between gap-4 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50">
                 <div className="space-y-0.5">
                   <div className="font-semibold text-slate-800 dark:text-slate-200">
-                    4. Boetid vs. Breakeven-horisont
+                    4. Boetid & fleksibilitet
                   </div>
                   <div className="text-slate-500 dark:text-slate-400">
-                    {isOpkonvertering
-                      ? `Hvis du skal sælge eller omlægge inden for 3-7 år, når mer-ydelsen ikke at udhule gældsbesparelsen.`
-                      : `Du bør forvente at blive boende i mindst 5-8 år, så den lavere ydelse når at tjene stiftelsesomkostningerne hjem.`}
+                    {isTillaegActive ? (
+                      <>
+                        Tillægslånet har lave gebyrer ({formatKr(activeFees)}), så stiftelsesomkostningerne er hurtigt afskrevet uanset boetid.
+                      </>
+                    ) : isOpkonvertering ? (
+                      `Hvis du skal sælge eller omlægge inden for 3-7 år, når mer-ydelsen ikke at udhule gældsbesparelsen.`
+                    ) : (
+                      `Du bør forvente at blive boende i mindst 5-8 år, så den lavere ydelse når at tjene stiftelsesomkostningerne hjem.`
+                    )}
                   </div>
                 </div>
                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold shrink-0 ${
@@ -367,7 +432,7 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
                     ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
                     : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
                 }`}>
-                  {breakevenYears ? `Breakeven: ${breakevenYears.toFixed(1)} år` : 'Ingen breakeven'}
+                  {isTillaegActive ? 'Høj fleksibilitet' : breakevenYears ? `Breakeven: ${breakevenYears.toFixed(1)} år` : 'Ingen breakeven'}
                 </span>
               </div>
 
@@ -379,9 +444,13 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
             <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div>
               <strong className="font-bold text-amber-950 dark:text-amber-200">
-                {isOpkonvertering ? 'Fælden ved opkonvertering:' : 'Fælden ved nedkonvertering:'}
+                {isTillaegActive ? 'Vigtigt ved Option B (Tillægslån):' : isOpkonvertering ? 'Fælden ved opkonvertering:' : 'Fælden ved nedkonvertering:'}
               </strong>{' '}
-              {isOpkonvertering ? (
+              {isTillaegActive ? (
+                <>
+                  Et tillægslån sparer stiftelsesomkostninger på {formatKr(fees.samledeOmkostninger - activeFees)}, men du har nu 2 separate lån på din ejendom. Vær opmærksom på at tillægslånet har sin egen ydelse på {formatKr(activeDeltaMonthlyYdelseEfterSkat)}/md.
+                </>
+              ) : isOpkonvertering ? (
                 <>
                   Hvis renten <em>ikke</em> falder igen, og du bliver boende i hele lånets løbetid, vil du have betalt langt mere i renter, end du skar af gælden. En opkonvertering er en aktiv satsning på, at renten falder inden for de næste 3–7 år.
                 </>
