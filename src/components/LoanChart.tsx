@@ -27,6 +27,7 @@ export const LoanChart: React.FC<LoanChartProps> = ({
   valueFormatter = formatKr,
 }) => {
   const [hoveredYear, setHoveredYear] = useState<number | null>(null);
+  const [isZoomed, setIsZoomed] = useState<boolean>(false);
 
   // SVG dimensions
   const width = 800;
@@ -36,32 +37,48 @@ export const LoanChart: React.FC<LoanChartProps> = ({
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
 
-  // Find max value across all series to scale Y axis
-  const maxValue = useMemo(() => {
+  // Find min & max value across all series to scale Y axis
+  const { minValue, maxValue } = useMemo(() => {
     let max = 0;
+    let minPositive = Infinity;
     for (const s of series) {
       for (const val of s.data) {
         if (val > max) max = val;
+        if (val > 0 && val < minPositive) minPositive = val;
       }
     }
-    return max > 0 ? Math.ceil(max * 1.1) : 100_000;
-  }, [series]);
+    const maxVal = max > 0 ? Math.ceil(max * 1.05) : 100_000;
+    let minVal = 0;
+    if (isZoomed && minPositive < max) {
+      const floorMin = Math.floor((minPositive * 0.7) / 100_000) * 100_000;
+      minVal = Math.max(0, floorMin);
+    }
+    return { minValue: minVal, maxValue: maxVal };
+  }, [series, isZoomed]);
+
+  const getY = (val: number) => {
+    const range = maxValue - minValue || 1;
+    const clamped = Math.max(minValue, Math.min(maxValue, val));
+    return padding.top + plotHeight - ((clamped - minValue) / range) * plotHeight;
+  };
 
   // Generate 5 nice Y-axis ticks
   const yTicks = useMemo(() => {
     const count = 5;
+    const range = maxValue - minValue;
     return Array.from({ length: count + 1 }, (_, i) => {
-      const val = (maxValue / count) * i;
+      const val = minValue + (range / count) * i;
+      const y = padding.top + plotHeight - ((val - minValue) / (range || 1)) * plotHeight;
       return {
         value: val,
-        y: padding.top + plotHeight - (val / maxValue) * plotHeight,
+        y,
         label:
           val >= 1_000_000
-            ? `${(val / 1_000_000).toFixed(1).replace('.', ',')} mio.`
+            ? `${(val / 1_000_000).toFixed(2).replace('.', ',')} mio.`
             : `${Math.round(val / 1_000)} t.`,
       };
     });
-  }, [maxValue, plotHeight, padding.top]);
+  }, [minValue, maxValue, plotHeight, padding.top]);
 
   // Generate X-axis ticks every 5 years
   const xTicks = useMemo(() => {
@@ -81,7 +98,7 @@ export const LoanChart: React.FC<LoanChartProps> = ({
     return series.map((s) => {
       const points = s.data.map((val, year) => {
         const x = padding.left + (year / years) * plotWidth;
-        const y = padding.top + plotHeight - (Math.max(0, val) / maxValue) * plotHeight;
+        const y = getY(val);
         return `${x},${y}`;
       });
 
@@ -95,13 +112,13 @@ export const LoanChart: React.FC<LoanChartProps> = ({
       if (s.uncertaintyUpper && s.uncertaintyLower) {
         const upperPts = s.uncertaintyUpper.map((val, year) => {
           const x = padding.left + (year / years) * plotWidth;
-          const y = padding.top + plotHeight - (Math.max(0, val) / maxValue) * plotHeight;
+          const y = getY(val);
           return `${x},${y}`;
         });
 
         const lowerPts = s.uncertaintyLower.map((val, year) => {
           const x = padding.left + (year / years) * plotWidth;
-          const y = padding.top + plotHeight - (Math.max(0, val) / maxValue) * plotHeight;
+          const y = getY(val);
           return `${x},${y}`;
         }).reverse();
 
@@ -115,21 +132,25 @@ export const LoanChart: React.FC<LoanChartProps> = ({
         uncertaintyPath,
       };
     });
-  }, [series, years, plotWidth, plotHeight, padding.left, padding.top, maxValue]);
+  }, [series, years, plotWidth, plotHeight, padding.left, padding.top, minValue, maxValue]);
 
-  // Handle mouse hover
+  // Handle mouse move for interactive tooltip vertical line
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const relativeX = (e.clientX - rect.left) / rect.width;
-    const svgX = relativeX * width;
-    const plotX = svgX - padding.left;
+    const mouseX = e.clientX - rect.left;
 
-    if (plotX >= 0 && plotX <= plotWidth) {
-      const year = Math.round((plotX / plotWidth) * years);
-      setHoveredYear(Math.max(0, Math.min(years, year)));
-    } else {
+    // Convert SVG mouseX to year
+    const relativeX = mouseX - (padding.left / width) * rect.width;
+    const chartWidth = ((width - padding.left - padding.right) / width) * rect.width;
+
+    if (relativeX < 0 || relativeX > chartWidth) {
       setHoveredYear(null);
+      return;
     }
+
+    const yearFraction = relativeX / chartWidth;
+    const year = Math.round(yearFraction * years);
+    setHoveredYear(Math.max(0, Math.min(years, year)));
   };
 
   const handleMouseLeave = () => {
@@ -154,17 +175,31 @@ export const LoanChart: React.FC<LoanChartProps> = ({
           {subtitle && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>}
         </div>
 
-        {/* Legend */}
-        <div className="flex items-center gap-4 text-xs font-medium">
-          {series.map((s) => (
-            <div key={s.id} className="flex items-center gap-1.5">
-              <span
-                className="h-3 w-3 rounded-full"
-                style={{ backgroundColor: s.color }}
-              />
-              <span className="text-slate-700 dark:text-slate-300">{s.name}</span>
-            </div>
-          ))}
+        {/* Legend & Zoom Button */}
+        <div className="flex flex-wrap items-center gap-4 text-xs font-medium">
+          <button
+            type="button"
+            onClick={() => setIsZoomed(!isZoomed)}
+            className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
+              isZoomed
+                ? 'border-blue-600 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950/40 dark:text-blue-300'
+                : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
+            }`}
+          >
+            {isZoomed ? '🔍 Zoomet (Nulstil)' : '🔍 Zoom Y-akse'}
+          </button>
+
+          <div className="flex items-center gap-4">
+            {series.map((s) => (
+              <div key={s.id} className="flex items-center gap-1.5">
+                <span
+                  className="h-3 w-3 rounded-full"
+                  style={{ backgroundColor: s.color }}
+                />
+                <span className="text-slate-700 dark:text-slate-300">{s.name}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

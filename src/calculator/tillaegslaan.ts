@@ -14,6 +14,7 @@ export function calculateTillaegslaanComparison(
   existingYears: number = 30,
   newYears: number = 30,
   desiredCashout: number = 200_000,
+  existingAfdragsfriYears?: number,
   taxDeductionRate: number = STANDARD_TAX_DEDUCTION_RATE
 ): TillaegslaanComparison {
   const existingQuarters = Math.max(1, Math.round(existingYears * 4));
@@ -29,7 +30,8 @@ export function calculateTillaegslaanComparison(
     existingQuarters,
     existingRestgaeld,
     existingLtvRange,
-    taxDeductionRate
+    taxDeductionRate,
+    existingAfdragsfriYears
   );
 
   // 2. Option A: Full Remortgage (Fuldt omlægningslån)

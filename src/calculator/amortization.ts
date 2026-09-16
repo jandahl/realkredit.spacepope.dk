@@ -52,16 +52,21 @@ export function calculateLoanAmortization(
   totalQuarters: number,
   principal: number,
   ltvRange: [number, number] = [0, 80],
-  taxDeductionRate: number = STANDARD_TAX_DEDUCTION_RATE
+  taxDeductionRate: number = STANDARD_TAX_DEDUCTION_RATE,
+  customAfdragsfriYears?: number
 ): LoanAmortizationResult {
   // Annual interest rate as decimal (e.g. 0.04)
   const annualRate = loan.rente / 100;
   const quarterlyRate = annualRate / 4;
 
   // Afdragsfri quarters: e.g. 10 years = 40 quarters
-  const afdragsfriQuarters = loan.afdragsfri
+  const defaultAfdragsfriQuarters = loan.afdragsfri
     ? Math.min(loan.maxTerminer ? loan.maxTerminer : totalQuarters, totalQuarters >= 40 ? 40 : totalQuarters)
     : 0;
+
+  const afdragsfriQuarters = customAfdragsfriYears !== undefined
+    ? Math.min(totalQuarters, Math.max(0, Math.round(customAfdragsfriYears * 4)))
+    : defaultAfdragsfriQuarters;
 
   const amortizingQuarters = Math.max(1, totalQuarters - afdragsfriQuarters);
 

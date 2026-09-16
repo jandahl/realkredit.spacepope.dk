@@ -13,6 +13,7 @@ export function calculateRefinancing(
   existingYears: number = 30,
   newYears: number = 30,
   frivaerdiUdbetalt: number = 0,
+  existingAfdragsfriYears?: number,
   taxDeductionRate: number = STANDARD_TAX_DEDUCTION_RATE
 ): RefinancingComparison {
   const existingQuarters = Math.max(1, Math.round(existingYears * 4));
@@ -83,7 +84,8 @@ export function calculateRefinancing(
     existingQuarters,
     existingRestgaeld,
     existingLtv,
-    taxDeductionRate
+    taxDeductionRate,
+    existingAfdragsfriYears
   );
 
   const newSchedule = calculateLoanAmortization(

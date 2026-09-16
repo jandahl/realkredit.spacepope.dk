@@ -130,6 +130,20 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
     setNewLoanYears((prev) => Math.min(prev, maxNewLoanYears));
   }, [activeNew, maxNewLoanYears]);
 
+  // Remaining interest-free years for existing loan (0 to Math.min(10, remainingYears))
+  const [existingAfdragsfriYears, setExistingAfdragsfriYears] = useState<number>(10);
+
+  // Sync existingAfdragsfriYears when activeExisting changes or remainingYears changes
+  useEffect(() => {
+    if (activeExisting) {
+      if (!activeExisting.afdragsfri) {
+        setExistingAfdragsfriYears(0);
+      } else {
+        setExistingAfdragsfriYears((prev) => Math.min(prev === 0 ? 10 : prev, remainingYears, 10));
+      }
+    }
+  }, [activeExisting, remainingYears]);
+
   // Maximum equity payout at 80% LTV
   const max80LtvCash = propertyValue * 0.80;
   const redemptionPrice = activeExisting ? Math.min(100, activeExisting.kurs) : 100;
@@ -147,12 +161,13 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       propertyValue,
       remainingYears,
       newLoanYears,
-      effectiveFrivaerdi
+      effectiveFrivaerdi,
+      existingAfdragsfriYears
     );
-  }, [activeExisting, activeNew, debt, propertyValue, remainingYears, newLoanYears, effectiveFrivaerdi]);
+  }, [activeExisting, activeNew, debt, propertyValue, remainingYears, newLoanYears, effectiveFrivaerdi, existingAfdragsfriYears]);
 
   const tillaegslaanComparison = useMemo(() => {
-    if (!activeExisting || !activeNew) return null;
+    if (!enableFrivaerdi || effectiveFrivaerdi <= 0 || !activeExisting || !activeNew) return null;
     return calculateTillaegslaanComparison(
       activeExisting,
       debt,
@@ -160,9 +175,10 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       propertyValue,
       remainingYears,
       newLoanYears,
-      effectiveFrivaerdi > 0 ? effectiveFrivaerdi : 200_000
+      effectiveFrivaerdi,
+      existingAfdragsfriYears
     );
-  }, [activeExisting, activeNew, debt, propertyValue, remainingYears, newLoanYears, effectiveFrivaerdi]);
+  }, [enableFrivaerdi, effectiveFrivaerdi, activeExisting, activeNew, debt, propertyValue, remainingYears, newLoanYears, existingAfdragsfriYears]);
 
   // Generate chart data: Restgæld pr. år up to the longest loan duration (maxYears)
   const chartSeries = useMemo<ChartSeries[]>(() => {
@@ -427,12 +443,34 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
               onChange={(e) => setRemainingYears(parseInt(e.target.value, 10))}
               className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-blue-600 focus:outline-none dark:bg-slate-700 dark:accent-blue-500"
             />
-            <div className="flex justify-between text-[11px] text-slate-400">
-              <span>1 år</span>
-              <span>{Math.round(maxExistingYears / 2)} år</span>
-              <span>{maxExistingYears} år ({activeExisting.udloebsAar || 'udløb'})</span>
-            </div>
           </div>
+
+          {/* År tilbage med afdragsfrihed (hvis nuværende lån er afdragsfrit) */}
+          {activeExisting.afdragsfri && (
+            <div className="flex flex-col gap-1.5 rounded-xl border border-amber-200/80 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/20 p-3.5">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-semibold text-amber-900 dark:text-amber-200">
+                  År tilbage med afdragsfrihed (Nuværende lån)
+                </label>
+                <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                  {existingAfdragsfriYears} {existingAfdragsfriYears === 1 ? 'år' : 'år'}
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={Math.min(10, remainingYears)}
+                step={1}
+                value={existingAfdragsfriYears}
+                onChange={(e) => setExistingAfdragsfriYears(parseInt(e.target.value, 10))}
+                className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-amber-600 focus:outline-none dark:bg-slate-700 dark:accent-amber-500"
+              />
+              <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                <span>0 år (afdrager fra i dag)</span>
+                <span>{Math.min(10, remainingYears)} år tilbage</span>
+              </div>
+            </div>
+          )}
 
           {/* Tillægslån / Friværdiudtag Section */}
           <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-800/40 p-4 transition-colors">
