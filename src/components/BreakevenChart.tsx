@@ -1,18 +1,20 @@
 import React, { useState, useMemo } from 'react';
 import type { LoanAmortizationResult } from '../calculator/types';
 import { formatKr } from '../utils/formatters';
-import { Info } from 'lucide-react';
+import { Info, Lightbulb } from 'lucide-react';
 
 interface BreakevenChartProps {
   existingSchedule: LoanAmortizationResult;
   newSchedule: LoanAmortizationResult;
   maxYears: number;
+  onOpenDumbIdeas?: () => void;
 }
 
 export const BreakevenChart: React.FC<BreakevenChartProps> = ({
   existingSchedule,
   newSchedule,
   maxYears,
+  onOpenDumbIdeas,
 }) => {
   const [hoveredQuarter, setHoveredQuarter] = useState<number | null>(null);
 
@@ -198,8 +200,8 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
           </p>
         </div>
 
-        {/* Legend */}
-        <div className="flex items-center gap-4 text-xs font-medium">
+        {/* Legend & Action */}
+        <div className="flex flex-wrap items-center gap-4 text-xs font-medium">
           <div className="flex items-center gap-1.5">
             <span className="h-0.5 w-4 bg-slate-400 border-dashed border-t border-slate-400" />
             <span className="text-slate-500 dark:text-slate-400">0 kr. (Skæringslinje)</span>
@@ -208,6 +210,17 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
             <span className="h-3 w-3 rounded-full bg-blue-600 dark:bg-blue-500" />
             <span className="text-slate-700 dark:text-slate-300">Breakeven balance</span>
           </div>
+
+          {onOpenDumbIdeas && (
+            <button
+              type="button"
+              onClick={onOpenDumbIdeas}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 dark:border-amber-800/80 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/50 transition-colors shadow-xs cursor-pointer"
+            >
+              <Lightbulb className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+              <span>DUMB IDEAS (Reality Check)</span>
+            </button>
+          )}
         </div>
       </div>
 

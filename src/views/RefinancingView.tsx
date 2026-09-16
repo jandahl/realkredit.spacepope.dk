@@ -7,8 +7,9 @@ import { MetricCard } from '../components/MetricCard';
 import { AmortizationTable } from '../components/AmortizationTable';
 import { LoanChart, type ChartSeries } from '../components/LoanChart';
 import { BreakevenChart } from '../components/BreakevenChart';
+import { DumbIdeasModal } from '../components/DumbIdeasModal';
 import { formatKr, formatKurs } from '../utils/formatters';
-import { Sparkles, Banknote, HelpCircle, ChevronDown, ChevronUp, Receipt } from 'lucide-react';
+import { Sparkles, Banknote, HelpCircle, ChevronDown, ChevronUp, Receipt, Lightbulb } from 'lucide-react';
 
 interface RefinancingViewProps {
   indfrielseLoans: BondLoan[];
@@ -43,6 +44,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
   const [enableFrivaerdi, setEnableFrivaerdi] = useState<boolean>(false);
   const [frivaerdiUdbetalt, setFrivaerdiUdbetalt] = useState<number>(0);
   const [showFees, setShowFees] = useState<boolean>(false);
+  const [showDumbIdeas, setShowDumbIdeas] = useState<boolean>(false);
 
   // New loan duration state (defaults to new bond maturity or 30)
   const [newLoanYears, setNewLoanYears] = useState<number>(30);
@@ -169,6 +171,30 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
     ];
   }, [comparison, activeExisting, activeNew]);
 
+  // Compute breakeven years for analysis
+  const breakevenYears = useMemo<number | null>(() => {
+    if (!comparison) return null;
+    const totalQuarters = Math.round(comparison.maxYears * 4);
+    let cumsum = 0;
+    const initialDelta = comparison.newSchedule.hovedstol - comparison.existingSchedule.hovedstol;
+    let prevBalance = initialDelta;
+
+    for (let q = 0; q < totalQuarters; q++) {
+      const oldRow = comparison.existingSchedule.schedule[q] || { endRestgaeld: 0, ydelseEfterSkat: 0 };
+      const newRow = comparison.newSchedule.schedule[q] || { endRestgaeld: 0, ydelseEfterSkat: 0 };
+      cumsum += (newRow.ydelseEfterSkat - oldRow.ydelseEfterSkat);
+      const deltaRest = newRow.endRestgaeld - oldRow.endRestgaeld;
+      const balance = cumsum + deltaRest;
+
+      if (prevBalance < 0 && balance >= 0) {
+        const fraction = -prevBalance / (balance - prevBalance);
+        return (q + fraction) / 4;
+      }
+      prevBalance = balance;
+    }
+    return null;
+  }, [comparison]);
+
   if (!activeExisting || !activeNew || !comparison) {
     return <div className="p-8 text-center text-slate-500 dark:text-slate-400">Indlæser lånedata...</div>;
   }
@@ -180,18 +206,29 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
     <div className="flex flex-col gap-8 pb-12">
       {/* Intro Banner */}
       <div className="rounded-2xl bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 p-6 sm:p-8 text-white shadow-md">
-        <div className="max-w-3xl">
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur-md mb-3">
-            <Sparkles className="h-3.5 w-3.5 text-amber-300" />
-            <span>Konverteringsberegner med live kurser</span>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur-md mb-3">
+              <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+              <span>Konverteringsberegner med live kurser</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+              Beregn omlægning af dit realkreditlån
+            </h2>
+            <p className="mt-2 text-sm sm:text-base text-blue-100/90 leading-relaxed">
+              Se hvad du kan skære af din restgæld ved en opkonvertering, hvad du sparer ved en nedkonvertering,
+              eller beregn et tillægslån med friværdi udbetalt.
+            </p>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            Beregn omlægning af dit realkreditlån
-          </h2>
-          <p className="mt-2 text-sm sm:text-base text-blue-100/90 leading-relaxed">
-            Se hvad du kan skære af din restgæld ved en opkonvertering, hvad du sparer ved en nedkonvertering,
-            eller beregn et tillægslån med friværdi udbetalt.
-          </p>
+
+          <button
+            type="button"
+            onClick={() => setShowDumbIdeas(true)}
+            className="self-start sm:self-center inline-flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-900 shadow-md hover:bg-amber-300 transition-all cursor-pointer shrink-0"
+          >
+            <Lightbulb className="h-4 w-4 text-slate-900" />
+            <span>DUMB IDEAS (Reality Check)</span>
+          </button>
         </div>
       </div>
 
@@ -524,6 +561,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
         existingSchedule={comparison.existingSchedule}
         newSchedule={comparison.newSchedule}
         maxYears={comparison.maxYears}
+        onOpenDumbIdeas={() => setShowDumbIdeas(true)}
       />
 
       {/* Graphical Chart of Restgæld Progression (scaled to longest loan duration) */}
@@ -547,6 +585,14 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
           defaultOpen={false}
         />
       </div>
+
+      {/* Dumb Ideas / Reality Check Modal */}
+      <DumbIdeasModal
+        isOpen={showDumbIdeas}
+        onClose={() => setShowDumbIdeas(false)}
+        comparison={comparison}
+        breakevenYears={breakevenYears}
+      />
     </div>
   );
 };
