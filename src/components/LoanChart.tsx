@@ -333,15 +333,9 @@ export const LoanChart: React.FC<LoanChartProps> = ({
           )}
         </svg>
 
-        {/* Hover Tooltip Overlay */}
+        {/* Hover Tooltip Overlay - Anchored in bottom-left of graph area */}
         {activeHoverData && (
-          <div
-            className="pointer-events-none absolute top-2 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/95 transition-all text-xs"
-            style={{
-              left: `${Math.min(75, Math.max(15, (activeHoverData.year / years) * 100))}%`,
-              transform: 'translateX(-50%)',
-            }}
-          >
+          <div className="pointer-events-none absolute bottom-12 left-20 sm:left-24 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/95 transition-all text-xs z-10">
             <div className="font-bold text-slate-800 dark:text-slate-100 border-b border-slate-100 dark:border-slate-700 pb-1 mb-1.5">
               Efter {activeHoverData.year} år
             </div>
