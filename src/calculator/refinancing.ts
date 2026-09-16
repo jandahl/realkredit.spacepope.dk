@@ -14,6 +14,7 @@ export function calculateRefinancing(
   newYears: number = 30,
   frivaerdiUdbetalt: number = 0,
   existingAfdragsfriYears?: number,
+  newAfdragsfriYears?: number,
   taxDeductionRate: number = STANDARD_TAX_DEDUCTION_RATE
 ): RefinancingComparison {
   const existingQuarters = Math.max(1, Math.round(existingYears * 4));
@@ -93,7 +94,8 @@ export function calculateRefinancing(
     newQuarters,
     nyHovedstol,
     newLtv,
-    taxDeductionRate
+    taxDeductionRate,
+    newAfdragsfriYears
   );
 
   const deltaRestgaeld = nyHovedstol - existingRestgaeld;

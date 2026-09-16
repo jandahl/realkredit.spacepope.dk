@@ -132,6 +132,10 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
 
   // Remaining interest-free years for existing loan (0 to Math.min(10, remainingYears))
   const [existingAfdragsfriYears, setExistingAfdragsfriYears] = useState<number>(10);
+  // Remaining interest-free years for new loan (0 to max allowed by new bond)
+  const [newAfdragsfriYears, setNewAfdragsfriYears] = useState<number>(0);
+  // Friværdi strategy selector: Option A (Fuld omlægning) vs Option B (Tillægslån)
+  const [frivaerdiStrategy, setFrivaerdiStrategy] = useState<'omlaegning' | 'tillaeg'>('omlaegning');
 
   // Sync existingAfdragsfriYears when activeExisting changes or remainingYears changes
   useEffect(() => {
@@ -143,6 +147,18 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       }
     }
   }, [activeExisting, remainingYears]);
+
+  // Sync newAfdragsfriYears when activeNew changes
+  useEffect(() => {
+    if (activeNew) {
+      if (!activeNew.afdragsfri) {
+        setNewAfdragsfriYears(0);
+      } else {
+        const defaultAfdragsfri = activeNew.name.includes('30 års afdragsfri') ? 30 : 10;
+        setNewAfdragsfriYears((prev) => (prev === 0 ? defaultAfdragsfri : Math.min(prev, defaultAfdragsfri)));
+      }
+    }
+  }, [activeNew]);
 
   // Maximum equity payout at 80% LTV
   const max80LtvCash = propertyValue * 0.80;
@@ -356,14 +372,51 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       totalBetalt: existing.totalBetalt + tillaeg.totalBetalt,
       schedule,
     };
-  }, [tillaegslaanComparison]);
+  }, [tillaegslaanComparison, comparison]);
 
   if (!activeExisting || !activeNew || !comparison) {
     return <div className="p-8 text-center text-slate-500 dark:text-slate-400">Indlæser lånedata...</div>;
   }
 
-  const isDebtReduced = comparison.deltaRestgaeld < 0;
-  const isPaymentLower = comparison.deltaMonthlyYdelseEfterSkat < 0;
+  // Active Display metrics depending on Option A vs Option B selection
+  const isOptionBActive = enableFrivaerdi && frivaerdiStrategy === 'tillaeg' && Boolean(tillaegslaanComparison);
+
+  const displayNyHovedstol = isOptionBActive && tillaegslaanComparison
+    ? comparison.existingRestgaeld + tillaegslaanComparison.optionB_tillaegslaan.tillaegHovedstol
+    : comparison.nyHovedstol;
+
+  const displayNyMonthlyYdelse = isOptionBActive && tillaegslaanComparison
+    ? tillaegslaanComparison.optionB_tillaegslaan.combinedMonthlyYdelseEfterSkat
+    : comparison.newSchedule.monthlyYdelseEfterSkat;
+
+  const displayDeltaMonthlyYdelse = isOptionBActive && tillaegslaanComparison
+    ? tillaegslaanComparison.optionB_tillaegslaan.tillaegMonthlyYdelseEfterSkat
+    : comparison.deltaMonthlyYdelseEfterSkat;
+
+  const displayMonthlyAfdrag = isOptionBActive && tillaegslaanComparison
+    ? comparison.existingSchedule.monthlyAfdrag + tillaegslaanComparison.optionB_tillaegslaan.tillaegSchedule.monthlyAfdrag
+    : comparison.newSchedule.monthlyAfdrag;
+
+  const displayDeltaAfdrag = isOptionBActive && tillaegslaanComparison
+    ? tillaegslaanComparison.optionB_tillaegslaan.tillaegSchedule.monthlyAfdrag
+    : comparison.deltaMonthlyAfdrag;
+
+  const displayDeltaRestgaeld = isOptionBActive && tillaegslaanComparison
+    ? tillaegslaanComparison.optionB_tillaegslaan.tillaegHovedstol
+    : comparison.deltaRestgaeld;
+
+  const displayFees = isOptionBActive && tillaegslaanComparison
+    ? tillaegslaanComparison.optionB_tillaegslaan.tillaegOmkostninger
+    : comparison.fees.samledeOmkostninger;
+
+  const displayKurstabOptagelse = isOptionBActive && tillaegslaanComparison
+    ? Math.max(0, tillaegslaanComparison.optionB_tillaegslaan.tillaegHovedstol - (tillaegslaanComparison.optionB_tillaegslaan.tillaegHovedstol * activeNew.kurs / 100))
+    : comparison.kurstabOptagelse;
+
+  const displayKursgevinstIndfrielse = isOptionBActive ? 0 : comparison.kursgevinstIndfrielse;
+
+  const isDebtReduced = displayDeltaRestgaeld < 0;
+  const isPaymentLower = displayDeltaMonthlyYdelse < 0;
 
   return (
     <div className="flex flex-col gap-8 pb-12">
@@ -509,14 +562,48 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
                   helpText={`Maksimalt til 80 % LTV: ${formatKr(maxPossibleFrivaerdi)}`}
                   showSlider={true}
                 />
-                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+
+                {/* Segmented strategy selector */}
+                <div className="flex flex-col gap-1.5 pt-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Vælg strategi for friværdiudtag:
+                  </label>
+                  <div className="flex items-center rounded-xl bg-slate-200/80 dark:bg-slate-800 p-1 text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setFrivaerdiStrategy('omlaegning')}
+                      className={`flex-1 py-2 px-3 rounded-lg text-center transition-all cursor-pointer ${
+                        frivaerdiStrategy === 'omlaegning'
+                          ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs font-bold'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      Option A: Fuld Omlægning
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFrivaerdiStrategy('tillaeg')}
+                      className={`flex-1 py-2 px-3 rounded-lg text-center transition-all cursor-pointer ${
+                        frivaerdiStrategy === 'tillaeg'
+                          ? 'bg-emerald-600 text-white shadow-xs font-bold'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      Option B: Tillægslån
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1">
                   <span>Samlet belåning inkl. udtag:</span>
                   <span className="font-semibold text-slate-700 dark:text-slate-200">
                     {formatKr(debt + frivaerdiUdbetalt)} ({Math.round(((debt + frivaerdiUdbetalt) / (propertyValue || 1)) * 100)} % LTV)
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-500 dark:text-slate-400 leading-normal">
-                  Dette beløb overføres til din konto. Låneomkostninger og gebyrer medfinansieres i det nye lån.
+                  {frivaerdiStrategy === 'tillaeg'
+                    ? 'Eksisterende lån beholdes intakt. Tillægslån optages separat til dækning af udbetaling og gebyrer.'
+                    : 'Hele lånet omlægges til et nyt samlet lån. Udbetaling og gebyrer medfinansieres.'}
                 </div>
               </div>
             )}
@@ -547,7 +634,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
             />
           </div>
 
-          {/* New loan duration slider if flexible */}
+          {/* New loan duration slider with step 1 and dynamic legend */}
           <div className="flex flex-col gap-1.5 border-t border-slate-100 dark:border-slate-800 pt-3">
             <div className="flex justify-between items-center">
               <label className="text-xs font-medium text-slate-600 dark:text-slate-400">
@@ -561,17 +648,44 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
               type="range"
               min={Math.min(10, maxNewLoanYears)}
               max={maxNewLoanYears}
-              step={maxNewLoanYears <= 10 ? 1 : 5}
+              step={1}
               value={newLoanYears}
               onChange={(e) => setNewLoanYears(parseInt(e.target.value, 10))}
               className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-blue-600 focus:outline-none dark:bg-slate-700 dark:accent-blue-500"
             />
             <div className="flex justify-between text-[10px] text-slate-400">
               <span>{Math.min(10, maxNewLoanYears)} år</span>
-              {maxNewLoanYears > 20 && <span>20 år</span>}
+              <span>{Math.round((Math.min(10, maxNewLoanYears) + maxNewLoanYears) / 2)} år</span>
               <span>{maxNewLoanYears} år</span>
             </div>
           </div>
+
+          {/* New loan afdragsfrie år slider (hvis nyt lån har/kan have afdragsfrihed) */}
+          {activeNew.afdragsfri && (
+            <div className="flex flex-col gap-1.5 rounded-xl border border-blue-200/80 dark:border-blue-900/40 bg-blue-50/40 dark:bg-blue-950/20 p-3.5">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-semibold text-blue-900 dark:text-blue-200">
+                  År med afdragsfrihed på det nye lån
+                </label>
+                <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                  {newAfdragsfriYears} {newAfdragsfriYears === 1 ? 'år' : 'år'}
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={activeNew.name.includes('30 års afdragsfri') ? 30 : Math.min(10, newLoanYears)}
+                step={1}
+                value={newAfdragsfriYears}
+                onChange={(e) => setNewAfdragsfriYears(parseInt(e.target.value, 10))}
+                className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-blue-600 focus:outline-none dark:bg-slate-700 dark:accent-blue-500"
+              />
+              <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                <span>0 år (afdrager fra start)</span>
+                <span>{activeNew.name.includes('30 års afdragsfri') ? '30 år' : `${Math.min(10, newLoanYears)} år`}</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -579,10 +693,10 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           title="Ny restgæld (Hovedstol)"
-          value={formatKr(comparison.nyHovedstol)}
+          value={formatKr(displayNyHovedstol)}
           subValue={`Før: ${formatKr(comparison.existingRestgaeld)}`}
           delta={{
-            text: isDebtReduced ? `${formatKr(Math.abs(comparison.deltaRestgaeld))} lavere` : `${formatKr(comparison.deltaRestgaeld)} højere`,
+            text: isDebtReduced ? `${formatKr(Math.abs(displayDeltaRestgaeld))} lavere` : `${formatKr(displayDeltaRestgaeld)} højere`,
             type: isDebtReduced ? 'positive' : 'negative',
           }}
           highlight={true}
@@ -590,34 +704,34 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
 
         <MetricCard
           title="Månedlig ydelse efter skat"
-          value={formatKr(comparison.newSchedule.monthlyYdelseEfterSkat)}
+          value={formatKr(displayNyMonthlyYdelse)}
           subValue={`Før: ${formatKr(comparison.existingSchedule.monthlyYdelseEfterSkat)}`}
           delta={{
-            text: `${comparison.deltaMonthlyYdelseEfterSkat > 0 ? '+' : ''}${formatKr(comparison.deltaMonthlyYdelseEfterSkat)}/md.`,
+            text: `${displayDeltaMonthlyYdelse > 0 ? '+' : ''}${formatKr(displayDeltaMonthlyYdelse)}/md.`,
             type: isPaymentLower ? 'positive' : 'negative',
           }}
         />
 
         <MetricCard
           title="Månedligt afdrag"
-          value={comparison.newSchedule.monthlyAfdrag === 0 ? '0 kr.' : formatKr(comparison.newSchedule.monthlyAfdrag)}
+          value={displayMonthlyAfdrag === 0 ? '0 kr. (Afdragsfrit)' : formatKr(displayMonthlyAfdrag)}
           subValue={
             comparison.existingSchedule.monthlyAfdrag === 0
               ? 'Før: Afdragsfrit (0 kr.)'
               : `Før: ${formatKr(comparison.existingSchedule.monthlyAfdrag)}`
           }
           delta={{
-            text: `${comparison.deltaMonthlyAfdrag > 0 ? '+' : ''}${formatKr(comparison.deltaMonthlyAfdrag)}/md.`,
-            type: comparison.deltaMonthlyAfdrag >= 0 ? 'positive' : 'negative',
+            text: `${displayDeltaAfdrag > 0 ? '+' : ''}${formatKr(displayDeltaAfdrag)}/md.`,
+            type: displayDeltaAfdrag >= 0 ? 'positive' : 'negative',
           }}
         />
 
         <MetricCard
           title="Udbetalt til din konto"
           value={enableFrivaerdi ? formatKr(comparison.frivaerdiUdbetalt) : '0 kr.'}
-          subValue={enableFrivaerdi ? `Omk. ${formatKr(comparison.fees.samledeOmkostninger)} medfinansieret` : 'Ren omlægning'}
+          subValue={enableFrivaerdi ? `Omk. ${formatKr(displayFees)} medfinansieret` : 'Ren omlægning'}
           delta={{
-            text: `Ny LTV: ${Math.round((comparison.nyHovedstol / propertyValue) * 100)} %`,
+            text: `Ny LTV: ${Math.round((displayNyHovedstol / propertyValue) * 100)} %`,
             type: 'neutral',
           }}
         />
@@ -625,11 +739,18 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
 
       {/* Kursgevinst & Kurstab Breakdown */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
-        <div className="flex items-center gap-2 mb-3">
-          <HelpCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-          <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-            Hvad betyder kursen for din restgæld og udbetaling?
-          </h3>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <HelpCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+              Hvad betyder kursen for din restgæld og udbetaling?
+            </h3>
+          </div>
+          {isOptionBActive && (
+            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/80 px-2.5 py-1 rounded-full border border-emerald-300 dark:border-emerald-800">
+              Option B: Tillægslån aktiv
+            </span>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2 items-stretch">
@@ -646,7 +767,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
             <div className="mt-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed border-t border-slate-200/60 dark:border-slate-700/60 pt-2.5">
               {enableFrivaerdi ? (
                 <>
-                  Gebyrer ({formatKr(comparison.fees.samledeOmkostninger)}) er medfinansieret i det nye lån.
+                  Gebyrer ({formatKr(displayFees)}) er medfinansieret i lånet.
                 </>
               ) : (
                 `Samlet kontantbehov: ${formatKr(comparison.samletKontantbehov)} til indfrielse og omk.`
@@ -656,15 +777,16 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
 
           {/* 2. CENTERPIECE: Kursgevinst vs. Kurstab (Mutex Box - Larger & Colored by Good/Bad) */}
           {(() => {
-            const hasGevinst = comparison.kursgevinstIndfrielse > 0;
-            const hasTab = comparison.kurstabOptagelse > 0;
+            const hasGevinst = displayKursgevinstIndfrielse > 0;
+            const hasTab = displayKurstabOptagelse > 0;
             const isFlex = Boolean(activeNew.flex) || activeNew.name.toLowerCase().includes('f-kort');
             // Net kurs-effekt: indfrielsesgevinst minus optagelsestab
-            const netKursEffekt = comparison.kursgevinstIndfrielse - comparison.kurstabOptagelse;
+            const netKursEffekt = displayKursgevinstIndfrielse - displayKurstabOptagelse;
             const isNetPositive = netKursEffekt >= 0;
 
             let badgeTitle = 'Netto Kurseffekt';
-            if (hasGevinst && hasTab) badgeTitle = 'Netto Kurseffekt';
+            if (isOptionBActive) badgeTitle = 'Kurstab på Tillægslån';
+            else if (hasGevinst && hasTab) badgeTitle = 'Netto Kurseffekt';
             else if (hasGevinst) badgeTitle = 'Kursgevinst ved Indfrielse';
             else if (hasTab) badgeTitle = 'Kurstab ved Optagelse';
             else badgeTitle = isFlex ? 'F-kort Optages til Kurs 100' : 'Optaget til Kurs 100';
@@ -707,27 +829,33 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
                         : 'text-amber-700 dark:text-amber-400'
                     }`}
                   >
-                    {hasGevinst && !hasTab && formatKr(comparison.kursgevinstIndfrielse)}
-                    {!hasGevinst && hasTab && formatKr(comparison.kurstabOptagelse)}
-                    {hasGevinst && hasTab && `${isNetPositive ? '+' : ''}${formatKr(netKursEffekt)}`}
-                    {!hasGevinst && !hasTab && '0 kr. (Kurs 100)'}
+                    {isOptionBActive
+                      ? formatKr(displayKurstabOptagelse)
+                      : hasGevinst && !hasTab
+                      ? formatKr(displayKursgevinstIndfrielse)
+                      : !hasGevinst && hasTab
+                      ? formatKr(displayKurstabOptagelse)
+                      : hasGevinst && hasTab
+                      ? `${isNetPositive ? '+' : ''}${formatKr(netKursEffekt)}`
+                      : '0 kr. (Kurs 100)'}
                   </div>
                   <div className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">
-                    {hasGevinst && hasTab && (
+                    {isOptionBActive ? (
+                      <span>
+                        Eksisterende gæld ({formatKr(debt)}) berøres ikke. Kurstab beregnes kun på tillægslånet ({formatKr(tillaegslaanComparison?.optionB_tillaegslaan.tillaegHovedstol || 0)} til kurs {formatKurs(activeNew.kurs)}).
+                      </span>
+                    ) : hasGevinst && hasTab ? (
                       <span>
                         Gevinst: <strong className="text-emerald-700 dark:text-emerald-400">{formatKr(comparison.kursgevinstIndfrielse)}</strong> (kurs {formatKurs(redemptionPrice)}) &bull; Tab: <strong className="text-amber-700 dark:text-amber-400">{formatKr(comparison.kurstabOptagelse)}</strong> (kurs {formatKurs(comparison.newKurs)})
                       </span>
-                    )}
-                    {hasGevinst && !hasTab && (
+                    ) : hasGevinst && !hasTab ? (
                       <span>
                         Gammel gæld indfries til under kurs 100 (kurs {formatKurs(redemptionPrice)}).
                         {isFlex ? ' Nyt F-kort lån optages til kurs 100 uden kurstab.' : ''}
                       </span>
-                    )}
-                    {!hasGevinst && hasTab && (
+                    ) : !hasGevinst && hasTab ? (
                       <span>Nye obligationer udstedes under kurs 100 (kurs {formatKurs(comparison.newKurs)})</span>
-                    )}
-                    {!hasGevinst && !hasTab && (
+                    ) : (
                       <span>
                         {isFlex
                           ? 'F-kort / variabelt lån optages til parikurs (kurs 100) uden tab af provenu.'
@@ -739,7 +867,11 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
 
                 {/* Explanatory footer */}
                 <div className="text-xs leading-relaxed border-t border-slate-200/80 dark:border-slate-700/80 pt-2.5 text-slate-700 dark:text-slate-300">
-                  {hasGevinst && hasTab ? (
+                  {isOptionBActive ? (
+                    <>
+                      <strong className="text-emerald-800 dark:text-emerald-300">Lille kurstab:</strong> Du undgår kurstab og tinglysningsafgift på dit hovedlån på {formatKr(debt)}. Kurstabet er begrænset til {formatKr(displayKurstabOptagelse)} på tillægslånet.
+                    </>
+                  ) : hasGevinst && hasTab ? (
                     isNetPositive ? (
                       <>
                         <strong className="text-emerald-800 dark:text-emerald-300">Fordelagtig skæring:</strong> Gevinsten ved at opkøbe dit gamle lån til kurs {formatKurs(redemptionPrice)} overstiger kurstabet ved at udstede det nye lån til kurs {formatKurs(comparison.newKurs)}.
@@ -753,10 +885,6 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
                     <>
                       <strong className="text-emerald-800 dark:text-emerald-300">Gældsskær:</strong> Du sparer {formatKr(comparison.kursgevinstIndfrielse)} direkte da dine gamle obligationer handles under pari.
                       {isFlex && ' Nyt F-kort lån udstedes til kurs 100 (pari) med 0 kr. i kurstab.'}
-                    </>
-                  ) : hasTab ? (
-                    <>
-                      <strong className="text-amber-800 dark:text-amber-300">Kurstab:</strong> Du mister {formatKr(comparison.kurstabOptagelse)} i provenu, som lægges oveni obligationshovedstolen.
                     </>
                   ) : (
                     <>

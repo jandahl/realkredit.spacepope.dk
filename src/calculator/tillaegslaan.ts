@@ -15,6 +15,7 @@ export function calculateTillaegslaanComparison(
   newYears: number = 30,
   desiredCashout: number = 200_000,
   existingAfdragsfriYears?: number,
+  newAfdragsfriYears?: number,
   taxDeductionRate: number = STANDARD_TAX_DEDUCTION_RATE
 ): TillaegslaanComparison {
   const existingQuarters = Math.max(1, Math.round(existingYears * 4));
@@ -58,7 +59,8 @@ export function calculateTillaegslaanComparison(
     newQuarters,
     nyHovedstolA,
     newLtvRangeA,
-    taxDeductionRate
+    taxDeductionRate,
+    newAfdragsfriYears
   );
 
   // 3. Option B: Keep 1st Mortgage + Issue Tillægslån for desired cashout
@@ -83,7 +85,8 @@ export function calculateTillaegslaanComparison(
     newQuarters,
     tillaegHovedstol,
     tillaegLtvRange,
-    taxDeductionRate
+    taxDeductionRate,
+    newAfdragsfriYears
   );
 
   const combinedMonthlyYdelseEfterSkatB = existingSchedule.monthlyYdelseEfterSkat + tillaegSchedule.monthlyYdelseEfterSkat;
