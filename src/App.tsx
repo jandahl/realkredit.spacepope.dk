@@ -1,16 +1,31 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Navbar } from './components/Navbar';
-import type { ViewType } from './components/Navbar';
 import { RefinancingView } from './views/RefinancingView';
 import { StandardLoanView } from './views/StandardLoanView';
 import { TwoLayerLoanView } from './views/TwoLayerLoanView';
 import { fetchKurser } from './api/rates';
 import type { BondLoan } from './calculator/types';
 import { FALLBACK_OPTAGELSE_LAAN, FALLBACK_INDFRIELSE_LAAN } from './api/fallbackRates';
+import { useLoanState } from './state/useLoanState';
+import { useTheme } from './utils/theme';
 import { ExternalLink } from 'lucide-react';
 
 export const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<ViewType>('refinancing');
+  const { theme, toggleTheme } = useTheme();
+  const {
+    state,
+    setView,
+    setPropertyValue,
+    setDebt,
+    setRemainingYears,
+    setSplitPercent,
+    setSelectedExistingLoanName,
+    setSelectedNewLoanName,
+    setSelectedStandardLoanName,
+    setSelectedLayer1LoanName,
+    setSelectedLayer2LoanName,
+  } = useLoanState();
+
   const [optagelseLoans, setOptagelseLoans] = useState<BondLoan[]>(FALLBACK_OPTAGELSE_LAAN);
   const [indfrielseLoans, setIndfrielseLoans] = useState<BondLoan[]>(FALLBACK_INDFRIELSE_LAAN);
   const [rateSource, setRateSource] = useState<'live' | 'fallback'>('fallback');
@@ -42,47 +57,79 @@ export const App: React.FC = () => {
   }, [loadRates]);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col font-sans text-slate-900 dark:text-slate-100 transition-colors">
       <Navbar
-        currentView={currentView}
-        onSelectView={setCurrentView}
+        currentView={state.currentView}
+        onSelectView={setView}
         rateSource={rateSource}
         isLoadingRates={isLoadingRates}
         onRefreshRates={loadRates}
         lastUpdated={lastUpdated}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
 
       <main className="mx-auto max-w-6xl w-full flex-1 px-4 py-8 sm:px-6">
-        {currentView === 'refinancing' && (
+        {state.currentView === 'refinancing' && (
           <RefinancingView
             indfrielseLoans={indfrielseLoans}
             optagelseLoans={optagelseLoans}
+            propertyValue={state.propertyValue}
+            setPropertyValue={setPropertyValue}
+            debt={state.existingRestgaeld}
+            setDebt={setDebt}
+            remainingYears={state.remainingYears}
+            setRemainingYears={setRemainingYears}
+            selectedExistingLoanName={state.selectedExistingLoanName}
+            setSelectedExistingLoanName={setSelectedExistingLoanName}
+            selectedNewLoanName={state.selectedNewLoanName}
+            setSelectedNewLoanName={setSelectedNewLoanName}
           />
         )}
 
-        {currentView === 'standard' && (
-          <StandardLoanView optagelseLoans={optagelseLoans} />
+        {state.currentView === 'standard' && (
+          <StandardLoanView
+            optagelseLoans={optagelseLoans}
+            propertyValue={state.propertyValue}
+            setPropertyValue={setPropertyValue}
+            loanAmount={state.loanAmount}
+            setLoanAmount={setDebt}
+            selectedStandardLoanName={state.selectedStandardLoanName}
+            setSelectedStandardLoanName={setSelectedStandardLoanName}
+          />
         )}
 
-        {currentView === 'twolayer' && (
-          <TwoLayerLoanView optagelseLoans={optagelseLoans} />
+        {state.currentView === 'twolayer' && (
+          <TwoLayerLoanView
+            optagelseLoans={optagelseLoans}
+            propertyValue={state.propertyValue}
+            setPropertyValue={setPropertyValue}
+            totalLoanAmount={state.loanAmount}
+            setTotalLoanAmount={setDebt}
+            splitPercent={state.splitPercent}
+            setSplitPercent={setSplitPercent}
+            selectedLayer1LoanName={state.selectedLayer1LoanName}
+            setSelectedLayer1LoanName={setSelectedLayer1LoanName}
+            selectedLayer2LoanName={state.selectedLayer2LoanName}
+            setSelectedLayer2LoanName={setSelectedLayer2LoanName}
+          />
         )}
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-6 text-xs text-slate-500">
+      <footer className="border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 py-6 text-xs text-slate-500 dark:text-slate-400 transition-colors">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
-            <span className="font-semibold text-slate-700">Realkredit.spacepope.dk</span> — Uafhængig realkreditberegner.
+            <span className="font-semibold text-slate-700 dark:text-slate-300">Realkredit.spacepope.dk</span> — Uafhængig realkreditberegner.
           </div>
-          <div className="flex items-center gap-4 text-slate-400">
+          <div className="flex items-center gap-4 text-slate-400 dark:text-slate-500">
             <span>Kurser fra Nasdaq Nordic / Totalkredit</span>
             <span>•</span>
             <a
               href="https://realkred.it"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 hover:text-slate-600"
+              className="inline-flex items-center gap-1 hover:text-slate-600 dark:hover:text-slate-300"
             >
               <span>Inspireret af realkred.it</span>
               <ExternalLink className="h-3 w-3" />

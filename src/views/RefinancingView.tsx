@@ -1,60 +1,112 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import type { BondLoan } from '../calculator/types';
 import { calculateRefinancing } from '../calculator/refinancing';
 import { CurrencyInput } from '../components/CurrencyInput';
 import { LoanSelect } from '../components/LoanSelect';
 import { MetricCard } from '../components/MetricCard';
 import { AmortizationTable } from '../components/AmortizationTable';
+import { LoanChart, type ChartSeries } from '../components/LoanChart';
 import { formatKr, formatPercent, formatKurs } from '../utils/formatters';
 import { Sparkles } from 'lucide-react';
 
 interface RefinancingViewProps {
   indfrielseLoans: BondLoan[];
   optagelseLoans: BondLoan[];
+  propertyValue: number;
+  setPropertyValue: (val: number) => void;
+  debt: number;
+  setDebt: (val: number) => void;
+  remainingYears: number;
+  setRemainingYears: (val: number) => void;
+  selectedExistingLoanName: string | null;
+  setSelectedExistingLoanName: (name: string | null) => void;
+  selectedNewLoanName: string | null;
+  setSelectedNewLoanName: (name: string | null) => void;
 }
 
 export const RefinancingView: React.FC<RefinancingViewProps> = ({
   indfrielseLoans,
   optagelseLoans,
+  propertyValue,
+  setPropertyValue,
+  debt,
+  setDebt,
+  remainingYears,
+  setRemainingYears,
+  selectedExistingLoanName,
+  setSelectedExistingLoanName,
+  selectedNewLoanName,
+  setSelectedNewLoanName,
 }) => {
-  const [propertyValue, setPropertyValue] = useState<number>(3_000_000);
-  const [existingRestgaeld, setExistingRestgaeld] = useState<number>(2_000_000);
-  const [remainingYears, setRemainingYears] = useState<number>(30);
-
-  // Selected existing and new loans (find realistic defaults like 1% 2050 and 4% 2059)
-  const defaultExisting = useMemo(() => {
+  // Find matching or default loans
+  const activeExisting = useMemo(() => {
+    if (selectedExistingLoanName) {
+      const found = indfrielseLoans.find((l) => l.name === selectedExistingLoanName);
+      if (found) return found;
+    }
     return (
       indfrielseLoans.find((l) => l.name.includes('1% 2050') || l.name.includes('0,5% 2050')) ||
       indfrielseLoans[0]
     );
-  }, [indfrielseLoans]);
+  }, [indfrielseLoans, selectedExistingLoanName]);
 
-  const defaultNew = useMemo(() => {
+  const activeNew = useMemo(() => {
+    if (selectedNewLoanName) {
+      const found = optagelseLoans.find((l) => l.name === selectedNewLoanName);
+      if (found) return found;
+    }
     return (
       optagelseLoans.find((l) => l.name.includes('4% 2059 med afdrag')) ||
       optagelseLoans[0]
     );
-  }, [optagelseLoans]);
-
-  const [selectedExisting, setSelectedExisting] = useState<BondLoan | null>(null);
-  const [selectedNew, setSelectedNew] = useState<BondLoan | null>(null);
-
-  const activeExisting = selectedExisting || defaultExisting;
-  const activeNew = selectedNew || defaultNew;
+  }, [optagelseLoans, selectedNewLoanName]);
 
   const comparison = useMemo(() => {
     if (!activeExisting || !activeNew) return null;
     return calculateRefinancing(
       activeExisting,
-      existingRestgaeld,
+      debt,
       activeNew,
       propertyValue,
       remainingYears
     );
-  }, [activeExisting, activeNew, existingRestgaeld, propertyValue, remainingYears]);
+  }, [activeExisting, activeNew, debt, propertyValue, remainingYears]);
+
+  // Generate chart data: Restgæld pr. år for both loans
+  const chartSeries = useMemo<ChartSeries[]>(() => {
+    if (!comparison) return [];
+
+    const existingData: number[] = [comparison.existingRestgaeld];
+    for (let y = 1; y <= remainingYears; y++) {
+      const qIndex = Math.min(y * 4 - 1, comparison.existingSchedule.schedule.length - 1);
+      existingData.push(comparison.existingSchedule.schedule[qIndex]?.endRestgaeld ?? 0);
+    }
+
+    const newData: number[] = [comparison.nyHovedstol];
+    for (let y = 1; y <= remainingYears; y++) {
+      const qIndex = Math.min(y * 4 - 1, comparison.newSchedule.schedule.length - 1);
+      newData.push(comparison.newSchedule.schedule[qIndex]?.endRestgaeld ?? 0);
+    }
+
+    return [
+      {
+        id: 'new',
+        name: `Nyt lån (${activeNew.name})`,
+        color: '#2563eb', // Blue
+        data: newData,
+      },
+      {
+        id: 'existing',
+        name: `Nuværende lån (${activeExisting.name})`,
+        color: '#f59e0b', // Amber/Orange
+        strokeDash: '5 5',
+        data: existingData,
+      },
+    ];
+  }, [comparison, remainingYears, activeExisting, activeNew]);
 
   if (!activeExisting || !activeNew || !comparison) {
-    return <div className="p-8 text-center text-slate-500">Indlæser lånedata...</div>;
+    return <div className="p-8 text-center text-slate-500 dark:text-slate-400">Indlæser lånedata...</div>;
   }
 
   const isDebtReduced = comparison.kursgevinstEllerTab > 0;
@@ -82,8 +134,8 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       {/* Input Section */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Left Card: Property & Debt Inputs */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs flex flex-col gap-5">
-          <h3 className="text-base font-semibold text-slate-900 border-b border-slate-100 pb-3">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900 flex flex-col gap-5 transition-colors">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-3">
             1. Din bolig & restgæld
           </h3>
 
@@ -94,13 +146,13 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
             min={500_000}
             max={15_000_000}
             step={100_000}
-            helpText={`LTV: ${Math.round((existingRestgaeld / propertyValue) * 100)} %`}
+            helpText={`LTV: ${Math.round((debt / propertyValue) * 100)} %`}
           />
 
           <CurrencyInput
             label="Nuværende restgæld"
-            value={existingRestgaeld}
-            onChange={setExistingRestgaeld}
+            value={debt}
+            onChange={setDebt}
             min={100_000}
             max={Math.min(propertyValue, 12_000_000)}
             step={50_000}
@@ -108,8 +160,8 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
 
           <div className="flex flex-col gap-1.5">
             <div className="flex justify-between items-center">
-              <label className="text-sm font-medium text-slate-700">Resterende løbetid</label>
-              <span className="text-sm font-semibold text-blue-600">{remainingYears} år</span>
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Resterende løbetid</label>
+              <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">{remainingYears} år</span>
             </div>
             <input
               type="range"
@@ -118,7 +170,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
               step={1}
               value={remainingYears}
               onChange={(e) => setRemainingYears(parseInt(e.target.value, 10))}
-              className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-blue-600 focus:outline-none"
+              className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-blue-600 focus:outline-none dark:bg-slate-700 dark:accent-blue-500"
             />
             <div className="flex justify-between text-[11px] text-slate-400">
               <span>5 år</span>
@@ -129,8 +181,8 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
         </div>
 
         {/* Right Card: Loan Selection */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs flex flex-col gap-5">
-          <h3 className="text-base font-semibold text-slate-900 border-b border-slate-100 pb-3">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900 flex flex-col gap-5 transition-colors">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-3">
             2. Vælg lån til sammenligning
           </h3>
 
@@ -138,7 +190,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
             label="Nuværende lån (indfrielse)"
             loans={indfrielseLoans}
             selectedLoan={activeExisting}
-            onSelectLoan={setSelectedExisting}
+            onSelectLoan={(l) => setSelectedExistingLoanName(l.name)}
             subtext={`Obligationskurs: ${formatKurs(activeExisting.kurs)} (Indfrielseskurs: ${formatKurs(Math.min(100, activeExisting.kurs))})`}
           />
 
@@ -146,17 +198,17 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
             label="Nyt lån (optagelse)"
             loans={optagelseLoans}
             selectedLoan={activeNew}
-            onSelectLoan={setSelectedNew}
+            onSelectLoan={(l) => setSelectedNewLoanName(l.name)}
             subtext={`Aktuel optagelseskurs: ${formatKurs(activeNew.kurs)}`}
           />
 
-          <div className="mt-2 rounded-xl bg-slate-50 p-4 text-xs text-slate-600 border border-slate-100">
-            <div className="font-semibold text-slate-800 mb-1">Sådan fungerer indfrielsen:</div>
+          <div className="mt-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-4 text-xs text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800">
+            <div className="font-semibold text-slate-800 dark:text-slate-200 mb-1">Sådan fungerer indfrielsen:</div>
             Dine nuværende obligationer indfries til kurs{' '}
-            <span className="font-semibold text-slate-900">{formatKurs(Math.min(100, activeExisting.kurs))}</span>. Det kræver{' '}
-            <span className="font-semibold text-slate-900">{formatKr(comparison.indfrielsesBeloeb)}</span> i kontanter. For at rejse dette beløb til kurs{' '}
-            <span className="font-semibold text-slate-900">{formatKurs(activeNew.kurs)}</span> udstedes nye obligationer med en hovedstol på{' '}
-            <span className="font-semibold text-slate-900">{formatKr(comparison.nyHovedstol)}</span>.
+            <span className="font-semibold text-slate-900 dark:text-slate-100">{formatKurs(Math.min(100, activeExisting.kurs))}</span>. Det kræver{' '}
+            <span className="font-semibold text-slate-900 dark:text-slate-100">{formatKr(comparison.indfrielsesBeloeb)}</span> i kontanter. For at rejse dette beløb til kurs{' '}
+            <span className="font-semibold text-slate-900 dark:text-slate-100">{formatKurs(activeNew.kurs)}</span> udstedes nye obligationer med en hovedstol på{' '}
+            <span className="font-semibold text-slate-900 dark:text-slate-100">{formatKr(comparison.nyHovedstol)}</span>.
           </div>
         </div>
       </div>
@@ -206,96 +258,96 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       </div>
 
       {/* Comparison Detail Box */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
-        <h3 className="text-base font-semibold text-slate-900 mb-4">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
+        <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-4">
           Sammenligning: Nuværende lån vs. Nyt lån
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-100 pt-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-100 dark:border-slate-800 pt-4">
           {/* Old Loan */}
-          <div className="flex flex-col gap-2 rounded-xl bg-slate-50 p-4 border border-slate-100">
-            <div className="text-xs font-semibold text-slate-500 uppercase">Nuværende lån</div>
-            <div className="text-base font-bold text-slate-900">{activeExisting.name}</div>
-            <div className="mt-2 space-y-1.5 text-xs text-slate-600">
+          <div className="flex flex-col gap-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-4 border border-slate-100 dark:border-slate-800">
+            <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Nuværende lån</div>
+            <div className="text-base font-bold text-slate-900 dark:text-slate-100">{activeExisting.name}</div>
+            <div className="mt-2 space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
               <div className="flex justify-between">
                 <span>Rente:</span>
-                <span className="font-semibold text-slate-800">{formatPercent(activeExisting.rente)}</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{formatPercent(activeExisting.rente)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Kurs:</span>
-                <span className="font-semibold text-slate-800">{formatKurs(activeExisting.kurs)}</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{formatKurs(activeExisting.kurs)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Mdl. ydelse før skat:</span>
-                <span className="font-semibold text-slate-800">{formatKr(comparison.existingSchedule.monthlyYdelse)}</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{formatKr(comparison.existingSchedule.monthlyYdelse)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Mdl. ydelse efter skat:</span>
-                <span className="font-semibold text-slate-800">{formatKr(comparison.existingSchedule.monthlyYdelseEfterSkat)}</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{formatKr(comparison.existingSchedule.monthlyYdelseEfterSkat)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Mdl. afdrag:</span>
-                <span className="font-semibold text-slate-800">{formatKr(comparison.existingSchedule.monthlyAfdrag)}</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{formatKr(comparison.existingSchedule.monthlyAfdrag)}</span>
               </div>
             </div>
           </div>
 
           {/* New Loan */}
-          <div className="flex flex-col gap-2 rounded-xl bg-blue-50/60 p-4 border border-blue-100">
-            <div className="text-xs font-semibold text-blue-700 uppercase">Nyt lån</div>
-            <div className="text-base font-bold text-slate-900">{activeNew.name}</div>
-            <div className="mt-2 space-y-1.5 text-xs text-slate-600">
+          <div className="flex flex-col gap-2 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 p-4 border border-blue-100 dark:border-blue-900/50">
+            <div className="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase">Nyt lån</div>
+            <div className="text-base font-bold text-slate-900 dark:text-slate-100">{activeNew.name}</div>
+            <div className="mt-2 space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
               <div className="flex justify-between">
                 <span>Rente:</span>
-                <span className="font-semibold text-slate-800">{formatPercent(activeNew.rente)}</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{formatPercent(activeNew.rente)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Optagelseskurs:</span>
-                <span className="font-semibold text-slate-800">{formatKurs(activeNew.kurs)}</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{formatKurs(activeNew.kurs)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Mdl. ydelse før skat:</span>
-                <span className="font-semibold text-slate-800">{formatKr(comparison.newSchedule.monthlyYdelse)}</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{formatKr(comparison.newSchedule.monthlyYdelse)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Mdl. ydelse efter skat:</span>
-                <span className="font-semibold text-slate-800">{formatKr(comparison.newSchedule.monthlyYdelseEfterSkat)}</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{formatKr(comparison.newSchedule.monthlyYdelseEfterSkat)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Mdl. afdrag:</span>
-                <span className="font-semibold text-slate-800">{formatKr(comparison.newSchedule.monthlyAfdrag)}</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{formatKr(comparison.newSchedule.monthlyAfdrag)}</span>
               </div>
             </div>
           </div>
 
           {/* Difference */}
-          <div className="flex flex-col gap-2 rounded-xl bg-slate-50 p-4 border border-slate-100">
-            <div className="text-xs font-semibold text-slate-500 uppercase">Forskel (Nyt minus Gammelt)</div>
-            <div className="text-base font-bold text-slate-900">
+          <div className="flex flex-col gap-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-4 border border-slate-100 dark:border-slate-800">
+            <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Forskel (Nyt minus Gammelt)</div>
+            <div className="text-base font-bold text-slate-900 dark:text-slate-100">
               {isDebtReduced ? 'Opkonvertering' : 'Nedkonvertering'}
             </div>
             <div className="mt-2 space-y-1.5 text-xs">
               <div className="flex justify-between">
-                <span className="text-slate-600">Restgæld:</span>
-                <span className={`font-semibold ${isDebtReduced ? 'text-emerald-600' : 'text-rose-600'}`}>
+                <span className="text-slate-600 dark:text-slate-400">Restgæld:</span>
+                <span className={`font-semibold ${isDebtReduced ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                   {comparison.deltaRestgaeld > 0 ? '+' : ''}{formatKr(comparison.deltaRestgaeld)}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-600">Mdl. ydelse før skat:</span>
-                <span className={`font-semibold ${comparison.deltaMonthlyYdelseFoerSkat <= 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
+                <span className="text-slate-600 dark:text-slate-400">Mdl. ydelse før skat:</span>
+                <span className={`font-semibold ${comparison.deltaMonthlyYdelseFoerSkat <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-100'}`}>
                   {comparison.deltaMonthlyYdelseFoerSkat > 0 ? '+' : ''}{formatKr(comparison.deltaMonthlyYdelseFoerSkat)}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-600">Mdl. ydelse efter skat:</span>
-                <span className={`font-semibold ${comparison.deltaMonthlyYdelseEfterSkat <= 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
+                <span className="text-slate-600 dark:text-slate-400">Mdl. ydelse efter skat:</span>
+                <span className={`font-semibold ${comparison.deltaMonthlyYdelseEfterSkat <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-100'}`}>
                   {comparison.deltaMonthlyYdelseEfterSkat > 0 ? '+' : ''}{formatKr(comparison.deltaMonthlyYdelseEfterSkat)}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-600">Mdl. afdrag:</span>
-                <span className={`font-semibold ${comparison.deltaMonthlyAfdrag >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                <span className="text-slate-600 dark:text-slate-400">Mdl. afdrag:</span>
+                <span className={`font-semibold ${comparison.deltaMonthlyAfdrag >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                   {comparison.deltaMonthlyAfdrag > 0 ? '+' : ''}{formatKr(comparison.deltaMonthlyAfdrag)}
                 </span>
               </div>
@@ -303,6 +355,14 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Graphical Chart of Restgæld Progression */}
+      <LoanChart
+        title="Restgældsudvikling over tid"
+        subtitle="Sammenligning af restgældsafvikling mellem dit nuværende lån og det nye lån"
+        years={remainingYears}
+        series={chartSeries}
+      />
 
       {/* Amortization Tables */}
       <div className="space-y-6">

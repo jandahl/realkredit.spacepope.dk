@@ -1,22 +1,41 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import type { BondLoan } from '../calculator/types';
 import { calculateTwoLayerLoan } from '../calculator/twoLayer';
 import { CurrencyInput } from '../components/CurrencyInput';
 import { LoanSelect } from '../components/LoanSelect';
 import { MetricCard } from '../components/MetricCard';
 import { AmortizationTable } from '../components/AmortizationTable';
+import { LoanChart, type ChartSeries } from '../components/LoanChart';
 import { formatKr, formatPercent, formatKurs } from '../utils/formatters';
 import { Layers } from 'lucide-react';
 
 interface TwoLayerLoanViewProps {
   optagelseLoans: BondLoan[];
+  propertyValue: number;
+  setPropertyValue: (val: number) => void;
+  totalLoanAmount: number;
+  setTotalLoanAmount: (val: number) => void;
+  splitPercent: number;
+  setSplitPercent: (val: number) => void;
+  selectedLayer1LoanName: string | null;
+  setSelectedLayer1LoanName: (name: string | null) => void;
+  selectedLayer2LoanName: string | null;
+  setSelectedLayer2LoanName: (name: string | null) => void;
 }
 
-export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({ optagelseLoans }) => {
-  const [propertyValue, setPropertyValue] = useState<number>(3_000_000);
-  const [totalLoanAmount, setTotalLoanAmount] = useState<number>(2_400_000);
-  const [splitPercent, setSplitPercent] = useState<number>(40); // 40% default split
-
+export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
+  optagelseLoans,
+  propertyValue,
+  setPropertyValue,
+  totalLoanAmount,
+  setTotalLoanAmount,
+  splitPercent,
+  setSplitPercent,
+  selectedLayer1LoanName,
+  setSelectedLayer1LoanName,
+  selectedLayer2LoanName,
+  setSelectedLayer2LoanName,
+}) => {
   // Defaults: Layer 1 = F-kort (low interest bottom) or Fixed afdragsfri, Layer 2 = 4% Fixed med afdrag
   const defaultLayer1 = useMemo(() => {
     return (
@@ -35,11 +54,21 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({ optagelseLoa
     );
   }, [optagelseLoans]);
 
-  const [layer1Loan, setLayer1Loan] = useState<BondLoan | null>(null);
-  const [layer2Loan, setLayer2Loan] = useState<BondLoan | null>(null);
+  const activeLayer1 = useMemo(() => {
+    if (selectedLayer1LoanName) {
+      const found = optagelseLoans.find((l) => l.name === selectedLayer1LoanName);
+      if (found) return found;
+    }
+    return defaultLayer1;
+  }, [optagelseLoans, selectedLayer1LoanName, defaultLayer1]);
 
-  const activeLayer1 = layer1Loan || defaultLayer1;
-  const activeLayer2 = layer2Loan || defaultLayer2;
+  const activeLayer2 = useMemo(() => {
+    if (selectedLayer2LoanName) {
+      const found = optagelseLoans.find((l) => l.name === selectedLayer2LoanName);
+      if (found) return found;
+    }
+    return defaultLayer2;
+  }, [optagelseLoans, selectedLayer2LoanName, defaultLayer2]);
 
   const result = useMemo(() => {
     if (!activeLayer1 || !activeLayer2) return null;
@@ -53,8 +82,48 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({ optagelseLoa
     );
   }, [propertyValue, totalLoanAmount, splitPercent, activeLayer1, activeLayer2]);
 
+  // Generate chart data: Restgæld for Lag 1, Lag 2 and Samlet
+  const chartSeries = useMemo<ChartSeries[]>(() => {
+    if (!result) return [];
+
+    const totalYears = 30;
+    const combinedData: number[] = [result.layer1Result.hovedstol + result.layer2Result.hovedstol];
+    const layer1Data: number[] = [result.layer1Result.hovedstol];
+    const layer2Data: number[] = [result.layer2Result.hovedstol];
+
+    for (let y = 1; y <= totalYears; y++) {
+      const qIndex = Math.min(y * 4 - 1, result.combinedSchedule.length - 1);
+      combinedData.push(result.combinedSchedule[qIndex]?.endRestgaeld ?? 0);
+      layer1Data.push(result.layer1Result.schedule[qIndex]?.endRestgaeld ?? 0);
+      layer2Data.push(result.layer2Result.schedule[qIndex]?.endRestgaeld ?? 0);
+    }
+
+    return [
+      {
+        id: 'combined',
+        name: 'Samlet restgæld',
+        color: '#2563eb', // Blue
+        data: combinedData,
+      },
+      {
+        id: 'layer2',
+        name: `Lag 2 Top (${activeLayer2.name})`,
+        color: '#8b5cf6', // Purple
+        strokeDash: '4 4',
+        data: layer2Data,
+      },
+      {
+        id: 'layer1',
+        name: `Lag 1 Bund (${activeLayer1.name})`,
+        color: '#10b981', // Emerald
+        strokeDash: '2 2',
+        data: layer1Data,
+      },
+    ];
+  }, [result, activeLayer1, activeLayer2]);
+
   if (!activeLayer1 || !activeLayer2 || !result) {
-    return <div className="p-8 text-center text-slate-500">Indlæser lån...</div>;
+    return <div className="p-8 text-center text-slate-500 dark:text-slate-400">Indlæser lån...</div>;
   }
 
   const totalLtv = Math.round((totalLoanAmount / propertyValue) * 100);
@@ -62,13 +131,13 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({ optagelseLoa
   return (
     <div className="flex flex-col gap-8 pb-12">
       {/* Header */}
-      <div className="rounded-2xl bg-white border border-slate-200 p-6 shadow-xs">
-        <div className="flex items-center gap-2 text-blue-600 font-semibold text-sm mb-1">
+      <div className="rounded-2xl bg-white border border-slate-200 p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
+        <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-semibold text-sm mb-1">
           <Layers className="h-4 w-4" />
           <span>To-lags belåning</span>
         </div>
-        <h2 className="text-2xl font-bold text-slate-900">Kombinér to realkreditlån</h2>
-        <p className="mt-1 text-sm text-slate-500">
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Kombinér to realkreditlån</h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Opdel dit lån i to lag – f.eks. et afdragsfrit variabelt lån i bunden (0–40 %) og et fastforrentet lån med afdrag i toppen (40–80 %) for at minimere bidragssats og optimere gældsafviklingen.
         </p>
       </div>
@@ -76,8 +145,8 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({ optagelseLoa
       {/* Inputs */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left: Global Property / Debt */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs flex flex-col gap-5">
-          <h3 className="text-base font-semibold text-slate-900 border-b border-slate-100 pb-3">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900 flex flex-col gap-5 transition-colors">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-3">
             Bolig & Samlet Lån
           </h3>
 
@@ -102,8 +171,8 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({ optagelseLoa
 
           <div className="flex flex-col gap-1.5">
             <div className="flex justify-between items-center">
-              <label className="text-sm font-medium text-slate-700">Opdelingspunkt (Lag 1 / Lag 2)</label>
-              <span className="text-sm font-semibold text-blue-600">{splitPercent} % LTV</span>
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Opdelingspunkt (Lag 1 / Lag 2)</label>
+              <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">{splitPercent} % LTV</span>
             </div>
             <input
               type="range"
@@ -112,7 +181,7 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({ optagelseLoa
               step={5}
               value={splitPercent}
               onChange={(e) => setSplitPercent(parseInt(e.target.value, 10))}
-              className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-blue-600 focus:outline-none"
+              className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-blue-600 focus:outline-none dark:bg-slate-700 dark:accent-blue-500"
             />
             <div className="flex justify-between text-[11px] text-slate-400">
               <span>20 % LTV</span>
@@ -123,71 +192,71 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({ optagelseLoa
         </div>
 
         {/* Middle: Layer 1 Loan */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs flex flex-col gap-5">
-          <div className="border-b border-slate-100 pb-3">
-            <span className="text-xs font-semibold text-blue-600 uppercase">Lag 1 (0 – {splitPercent} %)</span>
-            <h3 className="text-base font-semibold text-slate-900">Bundlån ({formatKr(result.layer1Amount)})</h3>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900 flex flex-col gap-5 transition-colors">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+            <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase">Lag 1 (0 – {splitPercent} %)</span>
+            <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Bundlån ({formatKr(result.layer1Amount)})</h3>
           </div>
 
           <LoanSelect
             label="Vælg lån til Lag 1"
             loans={optagelseLoans}
             selectedLoan={activeLayer1}
-            onSelectLoan={setLayer1Loan}
+            onSelectLoan={(l) => setSelectedLayer1LoanName(l.name)}
             subtext={`Kurs ${formatKurs(activeLayer1.kurs)} • Rente ${formatPercent(activeLayer1.rente)}`}
           />
 
-          <div className="rounded-xl bg-slate-50 p-3.5 text-xs text-slate-600 border border-slate-100 space-y-1.5 mt-auto">
+          <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3.5 text-xs text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800 space-y-1.5 mt-auto">
             <div className="flex justify-between">
               <span>Hovedstol:</span>
-              <span className="font-semibold text-slate-900">{formatKr(result.layer1Result.hovedstol)}</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{formatKr(result.layer1Result.hovedstol)}</span>
             </div>
             <div className="flex justify-between">
               <span>Effektiv bidragssats:</span>
-              <span className="font-semibold text-slate-900">{formatPercent(result.layer1Result.bidragsSats * 100)}</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{formatPercent(result.layer1Result.bidragsSats * 100)}</span>
             </div>
             <div className="flex justify-between">
               <span>Mdl. ydelse efter skat:</span>
-              <span className="font-semibold text-slate-900">{formatKr(result.layer1Result.monthlyYdelseEfterSkat)}</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{formatKr(result.layer1Result.monthlyYdelseEfterSkat)}</span>
             </div>
             <div className="flex justify-between">
               <span>Mdl. afdrag:</span>
-              <span className="font-semibold text-slate-900">{formatKr(result.layer1Result.monthlyAfdrag)}</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{formatKr(result.layer1Result.monthlyAfdrag)}</span>
             </div>
           </div>
         </div>
 
         {/* Right: Layer 2 Loan */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs flex flex-col gap-5">
-          <div className="border-b border-slate-100 pb-3">
-            <span className="text-xs font-semibold text-indigo-600 uppercase">Lag 2 ({splitPercent} – {totalLtv} %)</span>
-            <h3 className="text-base font-semibold text-slate-900">Toplån ({formatKr(result.layer2Amount)})</h3>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900 flex flex-col gap-5 transition-colors">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+            <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase">Lag 2 ({splitPercent} – {totalLtv} %)</span>
+            <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Toplån ({formatKr(result.layer2Amount)})</h3>
           </div>
 
           <LoanSelect
             label="Vælg lån til Lag 2"
             loans={optagelseLoans}
             selectedLoan={activeLayer2}
-            onSelectLoan={setLayer2Loan}
+            onSelectLoan={(l) => setSelectedLayer2LoanName(l.name)}
             subtext={`Kurs ${formatKurs(activeLayer2.kurs)} • Rente ${formatPercent(activeLayer2.rente)}`}
           />
 
-          <div className="rounded-xl bg-slate-50 p-3.5 text-xs text-slate-600 border border-slate-100 space-y-1.5 mt-auto">
+          <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3.5 text-xs text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800 space-y-1.5 mt-auto">
             <div className="flex justify-between">
               <span>Hovedstol:</span>
-              <span className="font-semibold text-slate-900">{formatKr(result.layer2Result.hovedstol)}</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{formatKr(result.layer2Result.hovedstol)}</span>
             </div>
             <div className="flex justify-between">
               <span>Effektiv bidragssats:</span>
-              <span className="font-semibold text-slate-900">{formatPercent(result.layer2Result.bidragsSats * 100)}</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{formatPercent(result.layer2Result.bidragsSats * 100)}</span>
             </div>
             <div className="flex justify-between">
               <span>Mdl. ydelse efter skat:</span>
-              <span className="font-semibold text-slate-900">{formatKr(result.layer2Result.monthlyYdelseEfterSkat)}</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{formatKr(result.layer2Result.monthlyYdelseEfterSkat)}</span>
             </div>
             <div className="flex justify-between">
               <span>Mdl. afdrag:</span>
-              <span className="font-semibold text-slate-900">{formatKr(result.layer2Result.monthlyAfdrag)}</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{formatKr(result.layer2Result.monthlyAfdrag)}</span>
             </div>
           </div>
         </div>
@@ -217,6 +286,14 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({ optagelseLoa
           subValue="Over lånets samlede løbetid"
         />
       </div>
+
+      {/* Graphical Chart of Restgæld Progression */}
+      <LoanChart
+        title="Restgældsudvikling for To-lags belåning"
+        subtitle="Samlet gældsafvikling opdelt på Lag 1 og Lag 2"
+        years={30}
+        series={chartSeries}
+      />
 
       {/* Combined Schedule Table */}
       <AmortizationTable

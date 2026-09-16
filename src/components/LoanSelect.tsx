@@ -29,13 +29,13 @@ export const LoanSelect: React.FC<LoanSelectProps> = ({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex justify-between items-center">
-        <label className="text-sm font-medium text-slate-700">{label}</label>
+        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{label}</label>
         {selectedLoan?.nasdaqUrl && (
           <a
             href={selectedLoan.nasdaqUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+            className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
             title="Se kurs på Nasdaq Nordic"
           >
             <span>Nasdaq</span>
@@ -48,7 +48,7 @@ export const LoanSelect: React.FC<LoanSelectProps> = ({
         <select
           value={selectedLoan?.name || ''}
           onChange={handleChange}
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-blue-400 transition-colors"
         >
           {loans.map((loan) => (
             <option key={loan.name + loan.kurs} value={loan.name}>
@@ -58,7 +58,7 @@ export const LoanSelect: React.FC<LoanSelectProps> = ({
         </select>
       </div>
 
-      {subtext && <span className="text-xs text-slate-500">{subtext}</span>}
+      {subtext && <span className="text-xs text-slate-500 dark:text-slate-400">{subtext}</span>}
     </div>
   );
 };
