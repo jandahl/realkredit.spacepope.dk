@@ -58,14 +58,25 @@ export interface RefinancingComparison {
   existingRestgaeld: number; // Market nominal debt
   existingKurs: number;
   indfrielsesBeloeb: number; // Cash needed to redeem: restgaeld * min(100, kurs) / 100
+  kursgevinstIndfrielse: number; // existingRestgaeld - indfrielsesBeloeb
+  
+  // Equity payout & cash required
+  frivaerdiUdbetalt: number; // Extra cash extracted
+  samletKontantbehov: number; // indfrielsesBeloeb + frivaerdiUdbetalt
   
   // New loan details
   newLoan: BondLoan;
   newKurs: number;
-  nyHovedstol: number; // Nominal debt of new loan: indfrielsesBeloeb / (newKurs / 100)
+  nyHovedstol: number; // Nominal debt of new loan: samletKontantbehov / (newKurs / 100)
+  kurstabOptagelse: number; // nyHovedstol - samletKontantbehov
   
+  // Loan terms
+  existingYears: number;
+  newYears: number;
+  maxYears: number;
+
   // Deltas
-  kursgevinstEllerTab: number; // existingRestgaeld - nyHovedstol
+  kursgevinstEllerTab: number; // existingRestgaeld - (nyHovedstol - frivaerdiUdbetalt)
   deltaRestgaeld: number; // nyHovedstol - existingRestgaeld
   deltaMonthlyYdelseEfterSkat: number; // new - old
   deltaMonthlyYdelseFoerSkat: number; // new - old

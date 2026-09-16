@@ -6,17 +6,17 @@ import { Info } from 'lucide-react';
 interface BreakevenChartProps {
   existingSchedule: LoanAmortizationResult;
   newSchedule: LoanAmortizationResult;
-  remainingYears: number;
+  maxYears: number;
 }
 
 export const BreakevenChart: React.FC<BreakevenChartProps> = ({
   existingSchedule,
   newSchedule,
-  remainingYears,
+  maxYears,
 }) => {
   const [hoveredQuarter, setHoveredQuarter] = useState<number | null>(null);
 
-  const totalQuarters = Math.round(remainingYears * 4);
+  const totalQuarters = Math.round(maxYears * 4);
 
   // Compute quarter-by-quarter breakeven data:
   // deltaRestgaeld = newRestgaeld - oldRestgaeld
@@ -128,15 +128,15 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
   // X-Ticks every 5 years
   const xTicks = useMemo(() => {
     const ticks: { year: number; x: number }[] = [];
-    const step = remainingYears <= 10 ? 2 : 5;
-    for (let y = 0; y <= remainingYears; y += step) {
+    const step = maxYears <= 10 ? 2 : 5;
+    for (let y = 0; y <= maxYears; y += step) {
       ticks.push({
         year: y,
-        x: padding.left + (y / remainingYears) * plotWidth,
+        x: padding.left + (y / maxYears) * plotWidth,
       });
     }
     return ticks;
-  }, [remainingYears, plotWidth, padding.left]);
+  }, [maxYears, plotWidth, padding.left]);
 
   // Y-Ticks
   const yTicks = useMemo(() => {
