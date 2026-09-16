@@ -3,12 +3,12 @@ import { Navbar } from './components/Navbar';
 import { RefinancingView } from './views/RefinancingView';
 import { StandardLoanView } from './views/StandardLoanView';
 import { TwoLayerLoanView } from './views/TwoLayerLoanView';
+import { WelcomeDisclaimerModal } from './components/WelcomeDisclaimerModal';
 import { fetchKurser } from './api/rates';
 import type { BondLoan } from './calculator/types';
 import { FALLBACK_OPTAGELSE_LAAN, FALLBACK_INDFRIELSE_LAAN } from './api/fallbackRates';
 import { useLoanState } from './state/useLoanState';
 import { useTheme } from './utils/theme';
-import { ExternalLink } from 'lucide-react';
 
 export const App: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -60,6 +60,8 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col font-sans text-slate-900 dark:text-slate-100 transition-colors">
+      <WelcomeDisclaimerModal />
+
       <Navbar
         currentView={state.currentView}
         onSelectView={setView}
@@ -125,21 +127,11 @@ export const App: React.FC = () => {
       {/* Footer */}
       <footer className="border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 py-6 text-xs text-slate-500 dark:text-slate-400 transition-colors">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div>
-            <span className="font-semibold text-slate-700 dark:text-slate-300">Realkredit.spacepope.dk</span> — Uafhængig realkreditberegner.
+          <div className="font-semibold text-slate-700 dark:text-slate-300 font-mono">
+            realkredit.spacepope.dk
           </div>
           <div className="flex items-center gap-4 text-slate-400 dark:text-slate-500">
-            <span>Kurser fra Nasdaq Nordic / Totalkredit</span>
-            <span>•</span>
-            <a
-              href="https://realkred.it"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 hover:text-slate-600 dark:hover:text-slate-300"
-            >
-              <span>Inspireret af realkred.it</span>
-              <ExternalLink className="h-3 w-3" />
-            </a>
+            <span>Obligationskurser fra Nasdaq Nordic / Totalkredit</span>
           </div>
         </div>
       </footer>
