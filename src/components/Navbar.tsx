@@ -58,7 +58,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
           <div>
             <h1 className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100 leading-none">
-              Realkredit<span className="text-blue-600">.dk</span>
+              Realkred<span className="text-blue-600">.it</span>
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Dansk Realkredit- & Konverteringsberegner</p>
           </div>
