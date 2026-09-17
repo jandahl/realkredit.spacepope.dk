@@ -203,10 +203,21 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
     [propertyValue, debt, redemptionPrice, newKurs],
   );
   const frivaerdiCapStrategy = frivaerdiStrategy; // 'omlaegning' | 'tillaeg'
-  const maxPossibleFrivaerdi = useMemo(
-    () => maxCostAwareFrivaerdi(cashoutLtvInputs, frivaerdiCapStrategy),
-    [cashoutLtvInputs, frivaerdiCapStrategy],
+  const maxFrivaerdiOmlaegning = useMemo(
+    () => maxCostAwareFrivaerdi(cashoutLtvInputs, 'omlaegning'),
+    [cashoutLtvInputs],
   );
+  const maxFrivaerdiTillaeg = useMemo(
+    () => maxCostAwareFrivaerdi(cashoutLtvInputs, 'tillaeg'),
+    [cashoutLtvInputs],
+  );
+  const maxPossibleFrivaerdi =
+    frivaerdiCapStrategy === 'tillaeg' ? maxFrivaerdiTillaeg : maxFrivaerdiOmlaegning;
+  /** Below-pari fuld omlægning often leaves much less room than tillægslån. */
+  const showBelowPariOmlaegningHint =
+    maxFrivaerdiOmlaegning > 0 &&
+    maxFrivaerdiTillaeg > 0 &&
+    maxFrivaerdiOmlaegning * 2 < maxFrivaerdiTillaeg;
   const effectiveFrivaerdi = enableFrivaerdi ? Math.min(frivaerdiUdbetalt, maxPossibleFrivaerdi) : 0;
 
   // Keep cashout within strategy-specific cost-aware 80% LTV when inputs/kurs/strategy change
@@ -757,7 +768,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
                   onChange={setFrivaerdiUdbetalt}
                   min={0}
                   max={maxPossibleFrivaerdi > 0 ? maxPossibleFrivaerdi : 0}
-                  step={5_000}
+                  step={1}
                   helpText={`Maks. til 80 % LTV inkl. medfinansierede omkostninger (valgt strategi): ${formatKr(maxPossibleFrivaerdi)}`}
                   showSlider={true}
                   fieldId="field-frivaerdi"
@@ -772,6 +783,18 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
                       setFrivaerdiUdbetalt(maxPossibleFrivaerdi);
                     }
                   }}
+                  labelAction={
+                    maxPossibleFrivaerdi > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setFrivaerdiUdbetalt(maxPossibleFrivaerdi)}
+                        className="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                        title={`Sæt til maks. ${formatKr(maxPossibleFrivaerdi)}`}
+                      >
+                        Maks
+                      </button>
+                    ) : null
+                  }
                 />
 
                 {/* Segmented strategy selector */}
@@ -830,6 +853,12 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
                     ? 'Eksisterende lån beholdes intakt. Tillægslån optages separat til dækning af udbetaling og gebyrer.'
                     : 'Hele lånet omlægges til et nyt samlet lån. Udbetaling og gebyrer medfinansieres.'}
                 </div>
+                {frivaerdiStrategy === 'omlaegning' && showBelowPariOmlaegningHint && (
+                  <div className="text-[11px] text-amber-700 dark:text-amber-400/90 leading-normal">
+                    Kurs under pari på fuld omlægning reducerer maks. udbetaling ift. tillægslån (eksisterende lån
+                    indfries ikke til underkurs).
+                  </div>
+                )}
               </div>
             )}
           </div>

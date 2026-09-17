@@ -115,6 +115,21 @@ describe('cost-aware friværdi (fees + kurs; strategy-specific hard slider max)'
     expect(capB).toBeGreaterThan(65_000); // B still has meaningful room vs ~65k both-crush
   });
 
+  it('4% 2059 @ kurs 94.02: A≈65579, B≈174538 (not fee-naive 200k)', () => {
+    // Bug URL case: pv=2475000, debt=1780000, newLoan below-pari — slider must reach B max
+    const belowPari = { ...exampleInputs, newKurs: 94.02 };
+    const capA = maxCostAwareFrivaerdi(belowPari, 'omlaegning');
+    const capB = maxCostAwareFrivaerdi(belowPari, 'tillaeg');
+    expect(capA).toBe(65_579);
+    expect(capB).toBe(174_538);
+    // Must not raise A toward the fee-naive 200k (LTV overage)
+    expect(capA).toBeLessThan(70_000);
+    expect(capB).toBeLessThan(200_000);
+    // Legacy step=5000 would stop B at 170_000; step=1 must allow exact max
+    expect(capB % 5_000).not.toBe(0);
+    expect(capA % 5_000).not.toBe(0);
+  });
+
   it('Option B total nominal at naive 200k cashout exceeds 80% LTV', () => {
     const max80 = maxLoanAt80Ltv(2_475_000);
     const exposureB = estimateOptionBTotalNominal(exampleInputs, 200_000);
