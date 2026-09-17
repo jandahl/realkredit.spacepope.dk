@@ -15,6 +15,7 @@ export const App: React.FC = () => {
   const {
     state,
     setView,
+    setMode,
     setPropertyValue,
     setDebt,
     setRemainingYears,
@@ -26,6 +27,7 @@ export const App: React.FC = () => {
     setSelectedLayer2LoanName,
     setEnableFrivaerdi,
     setFrivaerdiUdbetalt,
+    getShareableUrl,
   } = useLoanState();
 
   const [optagelseLoans, setOptagelseLoans] = useState<BondLoan[]>(FALLBACK_OPTAGELSE_LAAN);
@@ -81,6 +83,7 @@ export const App: React.FC = () => {
         lastUpdated={lastUpdated}
         theme={theme}
         onToggleTheme={toggleTheme}
+        getShareableUrl={getShareableUrl}
       />
 
       <main className="mx-auto max-w-6xl w-full min-w-0 flex-1 px-4 py-5 sm:px-6 sm:py-6">
@@ -102,6 +105,8 @@ export const App: React.FC = () => {
             setEnableFrivaerdi={setEnableFrivaerdi}
             frivaerdiUdbetalt={state.frivaerdiUdbetalt}
             setFrivaerdiUdbetalt={setFrivaerdiUdbetalt}
+            mode={state.mode}
+            setMode={setMode}
           />
         )}
 
@@ -114,6 +119,8 @@ export const App: React.FC = () => {
             setLoanAmount={setDebt}
             selectedStandardLoanName={state.selectedStandardLoanName}
             setSelectedStandardLoanName={setSelectedStandardLoanName}
+            mode={state.mode}
+            setMode={setMode}
           />
         )}
 
@@ -130,6 +137,8 @@ export const App: React.FC = () => {
             setSelectedLayer1LoanName={setSelectedLayer1LoanName}
             selectedLayer2LoanName={state.selectedLayer2LoanName}
             setSelectedLayer2LoanName={setSelectedLayer2LoanName}
+            mode={state.mode}
+            setMode={setMode}
           />
         )}
       </main>

@@ -6,11 +6,26 @@
 @layer base {
   html {
     @apply overflow-x-hidden max-w-full;
+    /* Default black before .dark is toggled off — matches inline FOUC guard */
+    background-color: #000;
+    color-scheme: dark;
   }
 
   body {
-    @apply bg-slate-50 text-slate-900 antialiased overflow-x-hidden max-w-full;
+    @apply antialiased overflow-x-hidden max-w-full;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    background-color: #000;
+    color: #f1f5f9;
+  }
+
+  /* Light mode overrides when .dark is removed */
+  html:not(.dark) {
+    background-color: #f8fafc;
+    color-scheme: light;
+  }
+
+  html:not(.dark) body {
+    @apply bg-slate-50 text-slate-900;
   }
 
   html.dark body {
@@ -19,5 +34,6 @@
 
   #root {
     @apply min-w-0 max-w-full overflow-x-hidden;
+    background-color: inherit;
   }
 }

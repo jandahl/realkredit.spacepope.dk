@@ -10,10 +10,13 @@ import { AmortizationTable } from '../components/AmortizationTable';
 import { LoanChart, type ChartSeries } from '../components/LoanChart';
 import { BreakevenChart } from '../components/BreakevenChart';
 import { DumbIdeasModal } from '../components/DumbIdeasModal';
+import { DumbIdeasPanel } from '../components/DumbIdeasPanel';
+import { ReportBar, ShowReportLink, type ReportStrategy } from '../components/ReportBar';
+import type { AppMode } from '../utils/appMode';
 import { TillaegslaanComparator } from '../components/TillaegslaanComparator';
 import { ValidationToast } from '../components/ValidationToast';
-import { formatKr, formatKurs } from '../utils/formatters';
-import { maxLoanAt80Ltv, maxPossibleFrivaerdi as calcMaxFrivaerdi, buildLtvFieldErrors } from '../utils/ltv';
+import { formatKr, formatKurs, formatPercent } from '../utils/formatters';
+import { maxLoanAt80Ltv, maxCostAwareFrivaerdi, buildLtvFieldErrors } from '../utils/ltv';
 import { Sparkles, Banknote, HelpCircle, ChevronDown, ChevronUp, Receipt, Lightbulb, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface RefinancingViewProps {
@@ -33,6 +36,8 @@ interface RefinancingViewProps {
   setEnableFrivaerdi: (val: boolean) => void;
   frivaerdiUdbetalt: number;
   setFrivaerdiUdbetalt: (val: number) => void;
+  mode: AppMode;
+  setMode: (mode: AppMode) => void;
 }
 
 export const RefinancingView: React.FC<RefinancingViewProps> = ({
@@ -52,9 +57,13 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
   setEnableFrivaerdi,
   frivaerdiUdbetalt,
   setFrivaerdiUdbetalt,
+  mode,
+  setMode,
 }) => {
   const [showFees, setShowFees] = useState<boolean>(false);
   const [showDumbIdeas, setShowDumbIdeas] = useState<boolean>(false);
+  const [reportStrategy, setReportStrategy] = useState<ReportStrategy>('a');
+  const isReport = mode === 'report';
 
   // New loan duration state (defaults to new bond maturity or 30)
   const [newLoanYears, setNewLoanYears] = useState<number>(30);
@@ -178,12 +187,27 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
     }
   }, [activeNew]);
 
-  // Maximum equity payout at 80% LTV
+  // Maximum equity payout at 80% LTV (cost- and kurs-aware: fees inflate hovedstol)
   const redemptionPrice = activeExisting ? Math.min(100, activeExisting.kurs > 0 ? activeExisting.kurs : 100) : 100;
+  const newOptagelsesKurs = activeNew && activeNew.kurs > 0 ? activeNew.kurs : 100;
   const maxDebtAt80 = maxLoanAt80Ltv(propertyValue);
-  const maxPossibleFrivaerdi = calcMaxFrivaerdi(propertyValue, debt, redemptionPrice);
+  const cashoutLtvInputs = {
+    propertyValue,
+    existingRestgaeld: debt,
+    existingKurs: redemptionPrice,
+    newKurs: newOptagelsesKurs,
+  };
+  // Cap for both strategies so switching A↔B cannot exceed 80% LTV
+  const maxPossibleFrivaerdi = maxCostAwareFrivaerdi(cashoutLtvInputs, 'both');
 
   const effectiveFrivaerdi = enableFrivaerdi ? Math.min(frivaerdiUdbetalt, maxPossibleFrivaerdi) : 0;
+
+  // Keep cashout within the cost-aware 80% LTV cap when inputs/kurs change
+  useEffect(() => {
+    if (enableFrivaerdi && frivaerdiUdbetalt > maxPossibleFrivaerdi) {
+      setFrivaerdiUdbetalt(maxPossibleFrivaerdi);
+    }
+  }, [enableFrivaerdi, frivaerdiUdbetalt, maxPossibleFrivaerdi, setFrivaerdiUdbetalt]);
 
   const debtError = debt > maxDebtAt80;
   const frivaerdiError = enableFrivaerdi && frivaerdiUdbetalt > maxPossibleFrivaerdi;
@@ -206,7 +230,15 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       setDebt(maxDebt);
     }
     if (enableFrivaerdi) {
-      const maxFri = calcMaxFrivaerdi(clampedProperty, nextDebt, redemptionPrice);
+      const maxFri = maxCostAwareFrivaerdi(
+        {
+          propertyValue: clampedProperty,
+          existingRestgaeld: nextDebt,
+          existingKurs: redemptionPrice,
+          newKurs: newOptagelsesKurs,
+        },
+        'both',
+      );
       if (frivaerdiUdbetalt > maxFri) {
         setFrivaerdiUdbetalt(maxFri);
       }
@@ -221,7 +253,15 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       setDebt(maxDebt);
     }
     if (enableFrivaerdi) {
-      const maxFri = calcMaxFrivaerdi(propertyValue, nextDebt, redemptionPrice);
+      const maxFri = maxCostAwareFrivaerdi(
+        {
+          propertyValue,
+          existingRestgaeld: nextDebt,
+          existingKurs: redemptionPrice,
+          newKurs: newOptagelsesKurs,
+        },
+        'both',
+      );
       if (frivaerdiUdbetalt > maxFri) {
         setFrivaerdiUdbetalt(maxFri);
       }
@@ -441,7 +481,12 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
   }
 
   // Active Display metrics depending on Option A vs Option B selection
-  const isOptionBActive = enableFrivaerdi && frivaerdiStrategy === 'tillaeg' && Boolean(tillaegslaanComparison);
+  // Report mode uses reportStrategy (a/b/both); edit mode uses frivaerdiStrategy.
+  const optionBAvailable = Boolean(tillaegslaanComparison);
+  const isOptionBActive = isReport
+    ? reportStrategy === 'b' && optionBAvailable
+    : enableFrivaerdi && frivaerdiStrategy === 'tillaeg' && optionBAvailable;
+  const showBothStrategies = isReport && reportStrategy === 'both' && optionBAvailable;
 
   const displayNyHovedstol = isOptionBActive && tillaegslaanComparison
     ? comparison.existingRestgaeld + tillaegslaanComparison.optionB_tillaegslaan.tillaegHovedstol
@@ -480,36 +525,104 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
   const isDebtReduced = displayDeltaRestgaeld < 0;
   const isPaymentLower = displayDeltaMonthlyYdelse < 0;
 
+  // Option B metrics for "Begge" stacked view
+  const optionBNyHovedstol = tillaegslaanComparison
+    ? comparison.existingRestgaeld + tillaegslaanComparison.optionB_tillaegslaan.tillaegHovedstol
+    : 0;
+  const optionBMonthly = tillaegslaanComparison
+    ? tillaegslaanComparison.optionB_tillaegslaan.combinedMonthlyYdelseEfterSkat
+    : 0;
+  const optionBDeltaMonthly = tillaegslaanComparison
+    ? tillaegslaanComparison.optionB_tillaegslaan.tillaegMonthlyYdelseEfterSkat
+    : 0;
+  const optionBDeltaRest = tillaegslaanComparison
+    ? tillaegslaanComparison.optionB_tillaegslaan.tillaegHovedstol
+    : 0;
+
   return (
     <div className={`flex flex-col gap-5 min-w-0 max-w-full ${fieldErrors.length ? "pb-28" : "pb-8"}`}>
-      {/* Intro Banner */}
-      <div className="rounded-xl bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 p-3.5 sm:p-4 text-white shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="max-w-2xl min-w-0">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-medium backdrop-blur-md mb-1.5">
-              <Sparkles className="h-3 w-3 text-amber-300" />
-              <span>Konverteringsberegner med live kurser</span>
+      {isReport ? (
+        <ReportBar
+          title="Rapport: Låneomlægning"
+          onEdit={() => setMode('edit')}
+          strategy={reportStrategy}
+          onStrategyChange={setReportStrategy}
+          optionBAvailable={optionBAvailable}
+          optionBDisabledReason="Tillægslån (Option B) kræver friværdiudtag i scenariet. Tryk Rediger for at aktivere."
+        />
+      ) : (
+        <div className="rounded-xl bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 p-3.5 sm:p-4 text-white shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="max-w-2xl min-w-0">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-medium backdrop-blur-md mb-1.5">
+                <Sparkles className="h-3 w-3 text-amber-300" />
+                <span>Konverteringsberegner med live kurser</span>
+              </div>
+              <h2 className="text-lg sm:text-xl font-bold tracking-tight">
+                Beregn omlægning af dit realkreditlån
+              </h2>
+              <p className="mt-1 text-xs sm:text-sm text-blue-100/85 leading-snug">
+                Op-/nedkonvertering, tillægslån og friværdi — med live obligationskurser.
+              </p>
             </div>
-            <h2 className="text-lg sm:text-xl font-bold tracking-tight">
-              Beregn omlægning af dit realkreditlån
-            </h2>
-            <p className="mt-1 text-xs sm:text-sm text-blue-100/85 leading-snug">
-              Op-/nedkonvertering, tillægslån og friværdi — med live obligationskurser.
-            </p>
+
+            <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+              <ShowReportLink onShow={() => setMode('report')} />
+              <button
+                type="button"
+                onClick={() => setShowDumbIdeas(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-white/35 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/95 backdrop-blur-sm hover:bg-white/20 transition-all cursor-pointer"
+              >
+                <Lightbulb className="h-3.5 w-3.5 text-amber-200" />
+                <span>Reality check</span>
+              </button>
+            </div>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setShowDumbIdeas(true)}
-            className="self-start sm:self-center inline-flex items-center gap-1.5 rounded-lg border border-white/35 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/95 backdrop-blur-sm hover:bg-white/20 transition-all cursor-pointer shrink-0"
-          >
-            <Lightbulb className="h-3.5 w-3.5 text-amber-200" />
-            <span>DUMB IDEAS</span>
-          </button>
         </div>
-      </div>
+      )}
 
-      {/* Input Section */}
+      {isReport && (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs transition-colors">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">Scenarie (skrivebeskyttet)</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div>
+              <div className="text-slate-500 dark:text-slate-400">Ejendomsværdi</div>
+              <div className="font-semibold text-slate-900 dark:text-slate-100">{formatKr(propertyValue)}</div>
+            </div>
+            <div>
+              <div className="text-slate-500 dark:text-slate-400">Restgæld</div>
+              <div className="font-semibold text-slate-900 dark:text-slate-100">{formatKr(debt)}</div>
+            </div>
+            <div>
+              <div className="text-slate-500 dark:text-slate-400">Nuværende lån</div>
+              <div className="font-semibold text-slate-900 dark:text-slate-100 truncate" title={activeExisting.name}>{activeExisting.name}</div>
+            </div>
+            <div>
+              <div className="text-slate-500 dark:text-slate-400">Nyt lån</div>
+              <div className="font-semibold text-slate-900 dark:text-slate-100 truncate" title={activeNew.name}>{activeNew.name}</div>
+            </div>
+            <div>
+              <div className="text-slate-500 dark:text-slate-400">Resterende løbetid</div>
+              <div className="font-semibold text-slate-900 dark:text-slate-100">{remainingYears} år</div>
+            </div>
+            <div>
+              <div className="text-slate-500 dark:text-slate-400">Nyt lån løbetid</div>
+              <div className="font-semibold text-slate-900 dark:text-slate-100">{newLoanYears} år</div>
+            </div>
+            <div>
+              <div className="text-slate-500 dark:text-slate-400">Friværdiudtag</div>
+              <div className="font-semibold text-slate-900 dark:text-slate-100">{enableFrivaerdi ? formatKr(effectiveFrivaerdi) : 'Nej'}</div>
+            </div>
+            <div>
+              <div className="text-slate-500 dark:text-slate-400">Rente</div>
+              <div className="font-semibold text-slate-900 dark:text-slate-100">{formatPercent(activeExisting.rente)} → {formatPercent(activeNew.rente)}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Input Section — hidden in report mode */}
+      {!isReport && (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Left Card: Property & Debt Inputs (no slider on currency fields) */}
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 flex flex-col gap-3 transition-colors">
@@ -630,13 +743,13 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
                   min={0}
                   max={maxPossibleFrivaerdi > 0 ? maxPossibleFrivaerdi : 0}
                   step={25_000}
-                  helpText={`Maksimalt til 80 % LTV: ${formatKr(maxPossibleFrivaerdi)}`}
+                  helpText={`Maks. til 80 % LTV inkl. stiftelsesomkostninger & kurs: ${formatKr(maxPossibleFrivaerdi)}`}
                   showSlider={true}
                   fieldId="field-frivaerdi"
                   error={frivaerdiError}
                   errorMessage={
                     frivaerdiError
-                      ? `Maks. ${formatKr(maxPossibleFrivaerdi)} til 80 % LTV. Justeres når du forlader feltet.`
+                      ? `Maks. ${formatKr(maxPossibleFrivaerdi)} til 80 % LTV inkl. omkostninger. Justeres når du forlader feltet.`
                       : undefined
                   }
                   onBlurValue={(clamped) => {
@@ -771,8 +884,31 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
           )}
         </div>
       </div>
+      )}
 
       {/* Key Metric Cards */}
+      {showBothStrategies ? (
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Option A: Fuld omlægning</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <MetricCard title="Ny restgæld (Hovedstol)" value={formatKr(comparison.nyHovedstol)} subValue={`Før: ${formatKr(comparison.existingRestgaeld)}`} delta={{ text: comparison.deltaRestgaeld < 0 ? `${formatKr(Math.abs(comparison.deltaRestgaeld))} lavere` : `${formatKr(comparison.deltaRestgaeld)} højere`, type: comparison.deltaRestgaeld < 0 ? 'positive' : 'negative' }} highlight={true} />
+              <MetricCard title="Månedlig ydelse efter skat" value={formatKr(comparison.newSchedule.monthlyYdelseEfterSkat)} subValue={`Før: ${formatKr(comparison.existingSchedule.monthlyYdelseEfterSkat)}`} delta={{ text: `${comparison.deltaMonthlyYdelseEfterSkat > 0 ? '+' : ''}${formatKr(comparison.deltaMonthlyYdelseEfterSkat)}/md.`, type: comparison.deltaMonthlyYdelseEfterSkat < 0 ? 'positive' : 'negative' }} />
+              <MetricCard title="Månedligt afdrag" value={comparison.newSchedule.monthlyAfdrag === 0 ? '0 kr. (Afdragsfrit)' : formatKr(comparison.newSchedule.monthlyAfdrag)} subValue={comparison.existingSchedule.monthlyAfdrag === 0 ? 'Før: Afdragsfrit (0 kr.)' : `Før: ${formatKr(comparison.existingSchedule.monthlyAfdrag)}`} />
+              <MetricCard title="Omkostninger" value={formatKr(comparison.fees.samledeOmkostninger)} subValue="Fuld omlægning" />
+            </div>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Option B: Tillægslån</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <MetricCard title="Samlet restgæld" value={formatKr(optionBNyHovedstol)} subValue={`Før: ${formatKr(comparison.existingRestgaeld)}`} delta={{ text: `+${formatKr(optionBDeltaRest)} tillæg`, type: 'neutral' }} highlight={true} />
+              <MetricCard title="Kombineret ydelse efter skat" value={formatKr(optionBMonthly)} subValue={`Før: ${formatKr(comparison.existingSchedule.monthlyYdelseEfterSkat)}`} delta={{ text: `+${formatKr(optionBDeltaMonthly)}/md.`, type: 'negative' }} />
+              <MetricCard title="Tillægslån hovedstol" value={formatKr(optionBDeltaRest)} subValue="Nuværende lån beholdes" />
+              <MetricCard title="Omkostninger" value={formatKr(tillaegslaanComparison!.optionB_tillaegslaan.tillaegOmkostninger)} subValue="Kun tillægslån" />
+            </div>
+          </div>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard
           title="Ny restgæld (Hovedstol)"
@@ -819,6 +955,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
           }}
         />
       </div>
+      )}
 
       {/* Kursgevinst & Kurstab Breakdown */}
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
@@ -1096,13 +1233,47 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
         />
       </div>
 
-      {/* Dumb Ideas / Reality Check Modal */}
+      {/* Inline Reality check in report mode */}
+      {isReport && (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-xs transition-colors">
+          <DumbIdeasPanel
+            comparison={comparison}
+            tillaegslaanComparison={tillaegslaanComparison}
+            breakevenYears={breakevenYears}
+            existingAfdragsfriYears={existingAfdragsfriYears}
+            newAfdragsfriYears={newAfdragsfriYears}
+            variant="inline"
+            hideStrategyToggle={showBothStrategies}
+            activeStrategy={
+              reportStrategy === 'b' ? 'tillaeg' : 'full'
+            }
+          />
+          {showBothStrategies && tillaegslaanComparison && (
+            <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-800">
+              <DumbIdeasPanel
+                comparison={comparison}
+                tillaegslaanComparison={tillaegslaanComparison}
+                breakevenYears={breakevenYears}
+                existingAfdragsfriYears={existingAfdragsfriYears}
+                newAfdragsfriYears={newAfdragsfriYears}
+                variant="inline"
+                hideStrategyToggle
+                activeStrategy="tillaeg"
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Dumb Ideas / Reality Check Modal (edit mode) */}
       <DumbIdeasModal
         isOpen={showDumbIdeas}
         onClose={() => setShowDumbIdeas(false)}
         comparison={comparison}
         tillaegslaanComparison={tillaegslaanComparison}
         breakevenYears={breakevenYears}
+        existingAfdragsfriYears={existingAfdragsfriYears}
+        newAfdragsfriYears={newAfdragsfriYears}
       />
 
       <ValidationToast errors={fieldErrors} />

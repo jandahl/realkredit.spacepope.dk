@@ -24,6 +24,8 @@ interface NavbarProps {
   lastUpdated: string;
   theme: ThemeMode;
   onToggleTheme: () => void;
+  /** Share copies a URL forced to mode=report so recipients land in Report. */
+  getShareableUrl?: () => string;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -35,12 +37,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   lastUpdated,
   theme,
   onToggleTheme,
+  getShareableUrl,
 }) => {
   const [copied, setCopied] = useState(false);
 
   const handleShare = async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      const url = getShareableUrl ? getShareableUrl() : window.location.href;
+      await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch (err) {

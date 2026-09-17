@@ -1,8 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ViewType } from '../components/Navbar';
+import { resolveAppMode, buildShareUrl, type AppMode } from '../utils/appMode';
+
+export type { AppMode };
 
 export interface SharedLoanState {
   currentView: ViewType;
+  mode: AppMode;
   propertyValue: number;
   existingRestgaeld: number;
   loanAmount: number;
@@ -21,6 +25,7 @@ const STORAGE_KEY = 'realkredit_calculator_state_v1';
 
 const DEFAULT_STATE: SharedLoanState = {
   currentView: 'refinancing',
+  mode: 'edit',
   propertyValue: 3_000_000,
   existingRestgaeld: 2_000_000,
   loanAmount: 2_000_000,
@@ -41,6 +46,7 @@ function getInitialState(): SharedLoanState {
 
   const urlParams = new URLSearchParams(window.location.search);
   const hasUrlParams = urlParams.has('tab') || urlParams.has('pv') || urlParams.has('debt');
+  const mode = resolveAppMode(window.location.search);
 
   if (hasUrlParams) {
     const viewParam = urlParams.get('tab') as ViewType;
@@ -57,6 +63,7 @@ function getInitialState(): SharedLoanState {
 
     return {
       currentView,
+      mode,
       propertyValue,
       existingRestgaeld: debt,
       loanAmount: debt,
@@ -76,13 +83,16 @@ function getInitialState(): SharedLoanState {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      return { ...DEFAULT_STATE, ...parsed };
+      // Fresh visit without share params → edit (URL is source of truth for share).
+      // Do not restore a stale report mode from localStorage on a clean URL.
+      const { mode: _ignoredMode, ...rest } = parsed;
+      return { ...DEFAULT_STATE, ...rest, mode: 'edit' };
     }
   } catch (err) {
     console.warn('Failed to parse saved state from localStorage:', err);
   }
 
-  return DEFAULT_STATE;
+  return { ...DEFAULT_STATE, mode: 'edit' };
 }
 
 export function useLoanState() {
@@ -98,6 +108,7 @@ export function useLoanState() {
 
     const params = new URLSearchParams();
     params.set('tab', state.currentView);
+    params.set('mode', state.mode);
     params.set('pv', state.propertyValue.toString());
     params.set('debt', state.existingRestgaeld.toString());
     params.set('years', state.remainingYears.toString());
@@ -131,6 +142,10 @@ export function useLoanState() {
 
   const setView = useCallback((currentView: ViewType) => {
     setState((prev) => ({ ...prev, currentView }));
+  }, []);
+
+  const setMode = useCallback((mode: AppMode) => {
+    setState((prev) => ({ ...prev, mode }));
   }, []);
 
   const setPropertyValue = useCallback((propertyValue: number) => {
@@ -183,12 +198,13 @@ export function useLoanState() {
   }, []);
 
   const getShareableUrl = useCallback(() => {
-    return window.location.href;
+    return buildShareUrl(window.location.href);
   }, []);
 
   return {
     state,
     setView,
+    setMode,
     setPropertyValue,
     setDebt,
     setRemainingYears,
