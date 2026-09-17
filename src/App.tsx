@@ -69,7 +69,7 @@ export const App: React.FC = () => {
   }, [loadRates]);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col font-sans text-slate-900 dark:text-slate-100 transition-colors">
+    <div className="min-h-screen min-w-0 max-w-full overflow-x-hidden bg-slate-50 dark:bg-black flex flex-col font-sans text-slate-900 dark:text-slate-100 transition-colors">
       <WelcomeDisclaimerModal />
 
       <Navbar
@@ -83,7 +83,7 @@ export const App: React.FC = () => {
         onToggleTheme={toggleTheme}
       />
 
-      <main className="mx-auto max-w-6xl w-full flex-1 px-4 py-5 sm:px-6 sm:py-6">
+      <main className="mx-auto max-w-6xl w-full min-w-0 flex-1 px-4 py-5 sm:px-6 sm:py-6">
         {state.currentView === 'refinancing' && (
           <RefinancingView
             indfrielseLoans={indfrielseLoans}

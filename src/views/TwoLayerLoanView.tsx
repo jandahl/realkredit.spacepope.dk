@@ -7,7 +7,9 @@ import { DependentLoanSelect } from '../components/DependentLoanSelect';
 import { MetricCard } from '../components/MetricCard';
 import { AmortizationTable } from '../components/AmortizationTable';
 import { LoanChart, type ChartSeries } from '../components/LoanChart';
+import { ValidationToast } from '../components/ValidationToast';
 import { formatKr, formatPercent, formatKurs } from '../utils/formatters';
+import { maxLoanAt80Ltv, buildLtvFieldErrors } from '../utils/ltv';
 import { Layers } from 'lucide-react';
 
 interface TwoLayerLoanViewProps {
@@ -136,10 +138,28 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
     return <div className="p-6 text-center text-slate-500 dark:text-slate-400">Indlæser lån...</div>;
   }
 
-  const totalLtv = Math.round((totalLoanAmount / propertyValue) * 100);
+  const totalLtv = propertyValue > 0 ? Math.round((totalLoanAmount / propertyValue) * 100) : 0;
+  const maxLoan = maxLoanAt80Ltv(propertyValue);
+  const loanError = totalLoanAmount > maxLoan;
+  const fieldErrors = buildLtvFieldErrors({
+    propertyValue,
+    debtOrLoan: totalLoanAmount,
+    debtAnchorId: 'field-samlet-laan',
+    debtLabel: `Samlet lånebeløb overstiger 80 % LTV (maks. ${formatKr(maxLoan)})`,
+  });
+
+  const handlePropertyBlur = (clampedProperty: number) => {
+    const max = maxLoanAt80Ltv(clampedProperty);
+    if (totalLoanAmount > max) setTotalLoanAmount(max);
+  };
+
+  const handleLoanBlur = (clampedLoan: number) => {
+    const max = maxLoanAt80Ltv(propertyValue);
+    if (clampedLoan > max) setTotalLoanAmount(max);
+  };
 
   return (
-    <div className="flex flex-col gap-5 pb-8">
+    <div className={`flex flex-col gap-5 min-w-0 max-w-full ${fieldErrors.length ? "pb-28" : "pb-8"}`}>
       {/* Header */}
       <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
         <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-semibold text-sm mb-0.5">
@@ -168,6 +188,8 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
             max={20_000_000}
             step={100_000}
             showSlider={false}
+            fieldId="field-ejendomsvaerdi-2lag"
+            onBlurValue={handlePropertyBlur}
           />
 
           <CurrencyInput
@@ -175,10 +197,18 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
             value={totalLoanAmount}
             onChange={setTotalLoanAmount}
             min={100_000}
-            max={Math.min(propertyValue * 0.8, 15_000_000)}
+            max={Math.min(propertyValue, 15_000_000)}
             step={50_000}
-            helpText={`Samlet LTV: ${totalLtv} %`}
+            helpText={`Samlet LTV: ${totalLtv} % (max 80 %)`}
             showSlider={false}
+            fieldId="field-samlet-laan"
+            error={loanError}
+            errorMessage={
+              loanError
+                ? `Maks. ${formatKr(maxLoan)} (80 % af ejendomsværdien). Justeres når du forlader feltet.`
+                : undefined
+            }
+            onBlurValue={handleLoanBlur}
           />
 
           <div className="flex flex-col gap-1.5">
@@ -328,6 +358,8 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
         title="Kombineret Annuitetstabel (Lag 1 + Lag 2)"
         defaultOpen={false}
       />
+
+      <ValidationToast errors={fieldErrors} />
     </div>
   );
 };

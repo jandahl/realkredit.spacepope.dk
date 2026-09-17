@@ -4,11 +4,15 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 
 const THEME_KEY = 'realkredit_theme_mode';
 
+/** Default to dark (true black shell) for first-time visitors. */
+const DEFAULT_THEME: ThemeMode = 'dark';
+
 export function useTheme() {
   const [theme, setThemeState] = useState<ThemeMode>(() => {
-    if (typeof window === 'undefined') return 'system';
-    const saved = localStorage.getItem(THEME_KEY) as ThemeMode;
-    return saved || 'system';
+    if (typeof window === 'undefined') return DEFAULT_THEME;
+    const saved = localStorage.getItem(THEME_KEY) as ThemeMode | null;
+    if (saved === 'light' || saved === 'dark' || saved === 'system') return saved;
+    return DEFAULT_THEME;
   });
 
   const applyTheme = useCallback((mode: ThemeMode) => {

@@ -6,7 +6,9 @@ import { DependentLoanSelect } from '../components/DependentLoanSelect';
 import { MetricCard } from '../components/MetricCard';
 import { AmortizationTable } from '../components/AmortizationTable';
 import { LoanChart, type ChartSeries } from '../components/LoanChart';
+import { ValidationToast } from '../components/ValidationToast';
 import { formatKr, formatPercent, formatKurs } from '../utils/formatters';
+import { maxLoanAt80Ltv, buildLtvFieldErrors } from '../utils/ltv';
 import { Calculator } from 'lucide-react';
 
 interface StandardLoanViewProps {
@@ -86,10 +88,28 @@ export const StandardLoanView: React.FC<StandardLoanViewProps> = ({
     return <div className="p-6 text-center text-slate-500 dark:text-slate-400">Indlæser lån...</div>;
   }
 
-  const ltvPercent = Math.round((loanAmount / propertyValue) * 100);
+  const ltvPercent = propertyValue > 0 ? Math.round((loanAmount / propertyValue) * 100) : 0;
+  const maxLoan = maxLoanAt80Ltv(propertyValue);
+  const loanError = loanAmount > maxLoan;
+  const fieldErrors = buildLtvFieldErrors({
+    propertyValue,
+    debtOrLoan: loanAmount,
+    debtAnchorId: 'field-laanebelob',
+    debtLabel: `Lånebeløb overstiger 80 % LTV (maks. ${formatKr(maxLoan)})`,
+  });
+
+  const handlePropertyBlur = (clampedProperty: number) => {
+    const max = maxLoanAt80Ltv(clampedProperty);
+    if (loanAmount > max) setLoanAmount(max);
+  };
+
+  const handleLoanBlur = (clampedLoan: number) => {
+    const max = maxLoanAt80Ltv(propertyValue);
+    if (clampedLoan > max) setLoanAmount(max);
+  };
 
   return (
-    <div className="flex flex-col gap-5 pb-8">
+    <div className={`flex flex-col gap-5 min-w-0 max-w-full ${fieldErrors.length ? "pb-28" : "pb-8"}`}>
       {/* Header */}
       <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
         <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-semibold text-sm mb-0.5">
@@ -117,6 +137,8 @@ export const StandardLoanView: React.FC<StandardLoanViewProps> = ({
             max={20_000_000}
             step={100_000}
             showSlider={false}
+            fieldId="field-ejendomsvaerdi-std"
+            onBlurValue={handlePropertyBlur}
           />
 
           <CurrencyInput
@@ -124,10 +146,18 @@ export const StandardLoanView: React.FC<StandardLoanViewProps> = ({
             value={loanAmount}
             onChange={setLoanAmount}
             min={100_000}
-            max={Math.min(propertyValue * 0.8, 15_000_000)}
+            max={Math.min(propertyValue, 15_000_000)}
             step={50_000}
             helpText={`Belåningsgrad (LTV): ${ltvPercent} % (max 80 %)`}
             showSlider={false}
+            fieldId="field-laanebelob"
+            error={loanError}
+            errorMessage={
+              loanError
+                ? `Maks. ${formatKr(maxLoan)} (80 % af ejendomsværdien). Justeres når du forlader feltet.`
+                : undefined
+            }
+            onBlurValue={handleLoanBlur}
           />
         </div>
 
@@ -208,6 +238,8 @@ export const StandardLoanView: React.FC<StandardLoanViewProps> = ({
         title={`Annuitetstabel for ${activeLoan.name}`}
         defaultOpen={false}
       />
+
+      <ValidationToast errors={fieldErrors} />
     </div>
   );
 };

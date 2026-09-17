@@ -11,7 +11,9 @@ import { LoanChart, type ChartSeries } from '../components/LoanChart';
 import { BreakevenChart } from '../components/BreakevenChart';
 import { DumbIdeasModal } from '../components/DumbIdeasModal';
 import { TillaegslaanComparator } from '../components/TillaegslaanComparator';
+import { ValidationToast } from '../components/ValidationToast';
 import { formatKr, formatKurs } from '../utils/formatters';
+import { maxLoanAt80Ltv, maxPossibleFrivaerdi as calcMaxFrivaerdi, buildLtvFieldErrors } from '../utils/ltv';
 import { Sparkles, Banknote, HelpCircle, ChevronDown, ChevronUp, Receipt, Lightbulb, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface RefinancingViewProps {
@@ -177,12 +179,54 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
   }, [activeNew]);
 
   // Maximum equity payout at 80% LTV
-  const max80LtvCash = propertyValue * 0.80;
   const redemptionPrice = activeExisting ? Math.min(100, activeExisting.kurs > 0 ? activeExisting.kurs : 100) : 100;
-  const existingRedemptionCash = (debt * redemptionPrice) / 100;
-  const maxPossibleFrivaerdi = Math.max(0, Math.floor(max80LtvCash - existingRedemptionCash));
+  const maxDebtAt80 = maxLoanAt80Ltv(propertyValue);
+  const maxPossibleFrivaerdi = calcMaxFrivaerdi(propertyValue, debt, redemptionPrice);
 
   const effectiveFrivaerdi = enableFrivaerdi ? Math.min(frivaerdiUdbetalt, maxPossibleFrivaerdi) : 0;
+
+  const debtError = debt > maxDebtAt80;
+  const frivaerdiError = enableFrivaerdi && frivaerdiUdbetalt > maxPossibleFrivaerdi;
+  const fieldErrors = buildLtvFieldErrors({
+    propertyValue,
+    debtOrLoan: debt,
+    debtAnchorId: 'field-restgaeld',
+    debtLabel: `Nuværende restgæld overstiger 80 % LTV (maks. ${formatKr(maxDebtAt80)})`,
+    enableFrivaerdi,
+    frivaerdiUdbetalt,
+    maxFrivaerdi: maxPossibleFrivaerdi,
+    frivaerdiAnchorId: 'field-frivaerdi',
+  });
+
+  const handlePropertyBlur = (clampedProperty: number) => {
+    const maxDebt = maxLoanAt80Ltv(clampedProperty);
+    let nextDebt = debt;
+    if (debt > maxDebt) {
+      nextDebt = maxDebt;
+      setDebt(maxDebt);
+    }
+    if (enableFrivaerdi) {
+      const maxFri = calcMaxFrivaerdi(clampedProperty, nextDebt, redemptionPrice);
+      if (frivaerdiUdbetalt > maxFri) {
+        setFrivaerdiUdbetalt(maxFri);
+      }
+    }
+  };
+
+  const handleDebtBlur = (clampedDebt: number) => {
+    const maxDebt = maxLoanAt80Ltv(propertyValue);
+    let nextDebt = clampedDebt;
+    if (clampedDebt > maxDebt) {
+      nextDebt = maxDebt;
+      setDebt(maxDebt);
+    }
+    if (enableFrivaerdi) {
+      const maxFri = calcMaxFrivaerdi(propertyValue, nextDebt, redemptionPrice);
+      if (frivaerdiUdbetalt > maxFri) {
+        setFrivaerdiUdbetalt(maxFri);
+      }
+    }
+  };
 
   const comparison = useMemo(() => {
     if (!activeExisting || !activeNew) return null;
@@ -437,7 +481,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
   const isPaymentLower = displayDeltaMonthlyYdelse < 0;
 
   return (
-    <div className="flex flex-col gap-5 pb-8">
+    <div className={`flex flex-col gap-5 min-w-0 max-w-full ${fieldErrors.length ? "pb-28" : "pb-8"}`}>
       {/* Intro Banner */}
       <div className="rounded-xl bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 p-3.5 sm:p-4 text-white shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -480,8 +524,10 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
             min={500_000}
             max={25_000_000}
             step={100_000}
-            helpText={`Belåning (LTV): ${Math.round((debt / propertyValue) * 100)} %`}
+            helpText={`Belåning (LTV): ${propertyValue > 0 ? Math.round((debt / propertyValue) * 100) : 0} %`}
             showSlider={false}
+            fieldId="field-ejendomsvaerdi"
+            onBlurValue={handlePropertyBlur}
           />
 
           <CurrencyInput
@@ -492,6 +538,14 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
             max={Math.min(propertyValue, 20_000_000)}
             step={50_000}
             showSlider={false}
+            fieldId="field-restgaeld"
+            error={debtError}
+            errorMessage={
+              debtError
+                ? `Maks. ${formatKr(maxDebtAt80)} (80 % af ejendomsværdien). Værdien justeres når du forlader feltet.`
+                : undefined
+            }
+            onBlurValue={handleDebtBlur}
           />
 
           {/* Resterende løbetid (kun for Nuværende lån, maks styret af udløbsår) */}
@@ -574,10 +628,22 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
                   value={frivaerdiUdbetalt}
                   onChange={setFrivaerdiUdbetalt}
                   min={0}
-                  max={maxPossibleFrivaerdi}
+                  max={maxPossibleFrivaerdi > 0 ? maxPossibleFrivaerdi : 0}
                   step={25_000}
                   helpText={`Maksimalt til 80 % LTV: ${formatKr(maxPossibleFrivaerdi)}`}
                   showSlider={true}
+                  fieldId="field-frivaerdi"
+                  error={frivaerdiError}
+                  errorMessage={
+                    frivaerdiError
+                      ? `Maks. ${formatKr(maxPossibleFrivaerdi)} til 80 % LTV. Justeres når du forlader feltet.`
+                      : undefined
+                  }
+                  onBlurValue={(clamped) => {
+                    if (clamped > maxPossibleFrivaerdi) {
+                      setFrivaerdiUdbetalt(maxPossibleFrivaerdi);
+                    }
+                  }}
                 />
 
                 {/* Segmented strategy selector */}
@@ -1038,6 +1104,8 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
         tillaegslaanComparison={tillaegslaanComparison}
         breakevenYears={breakevenYears}
       />
+
+      <ValidationToast errors={fieldErrors} />
     </div>
   );
 };

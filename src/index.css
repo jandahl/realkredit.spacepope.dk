@@ -1,8 +1,23 @@
 @import "tailwindcss";
 
+/* Class-based dark mode (toggle + default dark), not only prefers-color-scheme */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
+  html {
+    @apply overflow-x-hidden max-w-full;
+  }
+
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    @apply bg-slate-50 text-slate-900 antialiased overflow-x-hidden max-w-full;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  html.dark body {
+    @apply bg-black text-slate-100;
+  }
+
+  #root {
+    @apply min-w-0 max-w-full overflow-x-hidden;
   }
 }

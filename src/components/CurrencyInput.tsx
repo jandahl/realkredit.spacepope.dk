@@ -10,6 +10,14 @@ interface CurrencyInputProps {
   suffix?: string;
   helpText?: string;
   showSlider?: boolean;
+  /** Extra work after min/max clamp on blur (e.g. LTV sibling clamps). */
+  onBlurValue?: (clampedValue: number) => void;
+  /** Visual + a11y error state (red frame). */
+  error?: boolean;
+  /** Danish callout shown under the field when error. */
+  errorMessage?: string;
+  /** Stable id on the wrapper for toast anchor links. */
+  fieldId?: string;
 }
 
 export const CurrencyInput: React.FC<CurrencyInputProps> = ({
@@ -22,8 +30,13 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
   suffix = 'kr.',
   helpText,
   showSlider = false,
+  onBlurValue,
+  error = false,
+  errorMessage,
+  fieldId,
 }) => {
-  const inputId = useId();
+  const reactId = useId();
+  const inputId = fieldId ? `${fieldId}-input` : reactId;
   const [displayValue, setDisplayValue] = useState(value.toLocaleString('da-DK'));
 
   useEffect(() => {
@@ -45,6 +58,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
       onChange(clamped);
     }
     setDisplayValue(clamped.toLocaleString('da-DK'));
+    onBlurValue?.(clamped);
   };
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,15 +67,23 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex justify-between items-center">
-        <label htmlFor={inputId} className="text-sm font-medium text-slate-700 dark:text-slate-300">
+    <div id={fieldId} className="flex flex-col gap-1 min-w-0">
+      <div className="flex justify-between items-center gap-2 min-w-0">
+        <label htmlFor={inputId} className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">
           {label}
         </label>
-        {helpText && <span className="text-xs text-slate-500 dark:text-slate-400">{helpText}</span>}
+        {helpText && (
+          <span
+            className={`text-xs shrink-0 ${
+              error ? 'text-rose-600 dark:text-rose-400 font-medium' : 'text-slate-500 dark:text-slate-400'
+            }`}
+          >
+            {helpText}
+          </span>
+        )}
       </div>
 
-      <div className="relative rounded-lg shadow-xs">
+      <div className="relative rounded-lg shadow-xs min-w-0">
         <input
           id={inputId}
           type="text"
@@ -69,12 +91,24 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
           value={displayValue}
           onChange={handleInputChange}
           onBlur={handleBlur}
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 pr-12 text-sm font-semibold text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-blue-400 transition-colors"
+          aria-invalid={error || undefined}
+          aria-describedby={error && errorMessage ? `${inputId}-error` : undefined}
+          className={`w-full min-w-0 rounded-lg border bg-white px-3 py-1.5 pr-12 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 dark:bg-slate-800 dark:text-slate-100 transition-colors ${
+            error
+              ? 'border-rose-500 ring-2 ring-rose-500/30 focus:border-rose-500 focus:ring-rose-500/40 dark:border-rose-500'
+              : 'border-slate-300 focus:border-blue-500 focus:ring-blue-500/20 dark:border-slate-700 dark:focus:border-blue-400'
+          }`}
         />
         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
           <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{suffix}</span>
         </div>
       </div>
+
+      {error && errorMessage && (
+        <p id={`${inputId}-error`} className="text-xs text-rose-600 dark:text-rose-400 font-medium leading-snug">
+          {errorMessage}
+        </p>
+      )}
 
       {showSlider && max > min && (
         <input
