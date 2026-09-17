@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useId } from 'react';
+import { snapRangeValue } from '../utils/rangeSlider';
 
 interface CurrencyInputProps {
   label: string;
@@ -18,6 +19,8 @@ interface CurrencyInputProps {
   errorMessage?: string;
   /** Stable id on the wrapper for toast anchor links. */
   fieldId?: string;
+  /** Optional control rendered beside the label (e.g. “Maks” button). */
+  labelAction?: React.ReactNode;
 }
 
 export const CurrencyInput: React.FC<CurrencyInputProps> = ({
@@ -34,6 +37,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
   error = false,
   errorMessage,
   fieldId,
+  labelAction,
 }) => {
   const reactId = useId();
   const inputId = fieldId ? `${fieldId}-input` : reactId;
@@ -62,7 +66,8 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
   };
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const num = clamp(parseInt(e.target.value, 10));
+    const raw = parseInt(e.target.value, 10);
+    const num = snapRangeValue(raw, min, max, step);
     onChange(num);
   };
 
@@ -72,15 +77,18 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
         <label htmlFor={inputId} className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">
           {label}
         </label>
-        {helpText && (
-          <span
-            className={`text-xs shrink-0 ${
-              error ? 'text-rose-600 dark:text-rose-400 font-medium' : 'text-slate-500 dark:text-slate-400'
-            }`}
-          >
-            {helpText}
-          </span>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {labelAction}
+          {helpText && (
+            <span
+              className={`text-xs ${
+                error ? 'text-rose-600 dark:text-rose-400 font-medium' : 'text-slate-500 dark:text-slate-400'
+              }`}
+            >
+              {helpText}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="relative rounded-lg shadow-xs min-w-0">
