@@ -81,7 +81,8 @@ export function estimateOptionBTotalNominal(
 /**
  * Fee-naive max cash-out: redemption cash vs 80% LTV room only
  * (excludes stiftelsesomkostninger and new-loan kurs→hovedstol inflation).
- * Used as the hard slider / blur clamp. See maxCostAwareFrivaerdi for soft warning.
+ * Kept for reference / upper bound; the hard slider clamp is maxCostAwareFrivaerdi
+ * with the active strategy (not "both").
  */
 export function maxPossibleFrivaerdi(
   propertyValue: number,
@@ -105,7 +106,8 @@ export type FrivaerdiStrategyCap = 'omlaegning' | 'tillaeg' | 'both';
  *
  * - omlaegning: Option A nyHovedstol ≤ max80
  * - tillaeg: Option B existing + tillaegHovedstol ≤ max80
- * - both: min of the two (safe for strategy switcher)
+ * - both: min of the two (reference only — do NOT use for slider max;
+ *   that crushed Option A@below-pari while B still had room)
  */
 export function maxCostAwareFrivaerdi(
   inputs: CashoutLtvInputs,
@@ -185,7 +187,7 @@ export function buildLtvFieldErrors(opts: {
     errors.push({
       id: 'ltv-frivaerdi',
       anchorId: opts.frivaerdiAnchorId,
-      message: `Ønsket udbetaling overstiger maks. til 80 % LTV (ekskl. stiftelsesomkostninger) (${opts.maxFrivaerdi.toLocaleString('da-DK')} kr)`,
+      message: `Ønsket udbetaling overstiger maks. til 80 % LTV inkl. medfinansierede omkostninger (${opts.maxFrivaerdi.toLocaleString('da-DK')} kr)`,
     });
   }
 
