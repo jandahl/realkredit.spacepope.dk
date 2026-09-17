@@ -120,7 +120,7 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
     : (breakevenYears !== null && breakevenYears <= 8);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-hidden">
       {/* Backdrop */}
       <div 
         className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
@@ -133,7 +133,7 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="dumb-ideas-title"
-        className="relative w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-5 sm:p-7 z-10 overflow-hidden text-slate-800 dark:text-slate-100 transition-colors"
+        className="relative w-full max-w-3xl max-h-[90vh] flex flex-col rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-4 sm:p-5 z-10 overflow-hidden text-slate-800 dark:text-slate-100 transition-colors"
       >
         
         {/* Header */}
@@ -202,7 +202,7 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
           </div>
         </div>
 
-        <div className="mt-4 space-y-6 flex-1 overflow-y-auto pr-1 py-1">
+        <div className="mt-3 space-y-5 flex-1 overflow-y-auto pr-1 py-1">
           
           {/* Section 1: "If you do this now, the effects are" */}
           <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-800/40 p-5 space-y-3">

@@ -53,7 +53,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1">
       <div className="flex justify-between items-center">
         <label htmlFor={inputId} className="text-sm font-medium text-slate-700 dark:text-slate-300">
           {label}
@@ -69,7 +69,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
           value={displayValue}
           onChange={handleInputChange}
           onBlur={handleBlur}
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 pr-12 text-base font-semibold text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-blue-400 transition-colors"
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 pr-12 text-sm font-semibold text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-blue-400 transition-colors"
         />
         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
           <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{suffix}</span>

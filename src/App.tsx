@@ -83,7 +83,7 @@ export const App: React.FC = () => {
         onToggleTheme={toggleTheme}
       />
 
-      <main className="mx-auto max-w-6xl w-full flex-1 px-4 py-8 sm:px-6">
+      <main className="mx-auto max-w-6xl w-full flex-1 px-4 py-5 sm:px-6 sm:py-6">
         {state.currentView === 'refinancing' && (
           <RefinancingView
             indfrielseLoans={indfrielseLoans}
@@ -135,8 +135,8 @@ export const App: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 py-6 text-xs text-slate-500 dark:text-slate-400 transition-colors">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <footer className="border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 py-4 text-xs text-slate-500 dark:text-slate-400 transition-colors">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="font-semibold text-slate-700 dark:text-slate-300 font-mono">
             realkredit.spacepope.dk
           </div>
