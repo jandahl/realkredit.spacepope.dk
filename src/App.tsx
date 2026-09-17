@@ -6,7 +6,7 @@ import { TwoLayerLoanView } from './views/TwoLayerLoanView';
 import { WelcomeDisclaimerModal } from './components/WelcomeDisclaimerModal';
 import { fetchKurser } from './api/rates';
 import type { BondLoan } from './calculator/types';
-import { FALLBACK_OPTAGELSE_LAAN, FALLBACK_INDFRIELSE_LAAN } from './api/fallbackRates';
+import { FALLBACK_OPTAGELSE_LAAN, FALLBACK_INDFRIELSE_LAAN, FALLBACK_RATES_AS_OF_LABEL } from './api/fallbackRates';
 import { useLoanState } from './state/useLoanState';
 import { useTheme } from './utils/theme';
 
@@ -32,7 +32,7 @@ export const App: React.FC = () => {
   const [indfrielseLoans, setIndfrielseLoans] = useState<BondLoan[]>(FALLBACK_INDFRIELSE_LAAN);
   const [rateSource, setRateSource] = useState<'live' | 'fallback' | 'partial'>('fallback');
   const [isLoadingRates, setIsLoadingRates] = useState<boolean>(false);
-  const [lastUpdated, setLastUpdated] = useState<string>(new Date().toLocaleTimeString('da-DK'));
+  const [lastUpdated, setLastUpdated] = useState<string>(FALLBACK_RATES_AS_OF_LABEL);
 
   const loadRates = useCallback(async () => {
     setIsLoadingRates(true);
@@ -46,12 +46,16 @@ export const App: React.FC = () => {
       setIndfrielseLoans(indfrielseRes.loans);
       if (optagelseRes.source === 'live' && indfrielseRes.source === 'live') {
         setRateSource('live');
+        setLastUpdated(optagelseRes.timestamp || new Date().toLocaleTimeString('da-DK'));
       } else if (optagelseRes.source === 'live' || indfrielseRes.source === 'live') {
         setRateSource('partial');
+        // Partial: live side is fresh; still show fetch time, Navbar labels it "Delvist live"
+        setLastUpdated(new Date().toLocaleTimeString('da-DK'));
       } else {
         setRateSource('fallback');
+        // Never pretend fallback snapshot is "now"
+        setLastUpdated(FALLBACK_RATES_AS_OF_LABEL);
       }
-      setLastUpdated(new Date().toLocaleTimeString('da-DK'));
     } catch (err) {
       console.error('Error loading rates:', err);
       setRateSource('fallback');

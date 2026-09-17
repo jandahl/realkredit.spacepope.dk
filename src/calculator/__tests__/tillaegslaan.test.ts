@@ -49,4 +49,29 @@ describe('Tillægslån vs. Full Remortgaging comparator', () => {
     expect(comparison.optionB_tillaegslaan.tillaegOmkostninger).toBeGreaterThan(5_000);
     expect(comparison.optionA_fullOmlaegning.totalOmkostninger).toBeGreaterThan(5_000);
   });
+
+  it('recommends tillægslån when keeping a near-par low-rate 1st mortgage beats full remortgage', () => {
+    // Near-par 1% loan: little redemption gain, so remortgaging whole debt to 4% loses vs tillæg
+    const nearParLowRate: BondLoan = {
+      ...oldLowRateLoan,
+      name: '1% 2050 near par',
+      kurs: 98.5,
+    };
+    const comparison = calculateTillaegslaanComparison(
+      nearParLowRate,
+      1_800_000,
+      newHighRateLoan,
+      3_000_000,
+      27,
+      30,
+      200_000
+    );
+
+    expect(comparison.monthlySavingsOptionB).toBeGreaterThan(100);
+    expect(comparison.recommendedStrategy).toBe('tillaegslaan');
+    expect(comparison.optionB_tillaegslaan.combinedMonthlyYdelseEfterSkat).toBeLessThan(
+      comparison.optionA_fullOmlaegning.monthlyYdelseEfterSkat
+    );
+  });
+
 });

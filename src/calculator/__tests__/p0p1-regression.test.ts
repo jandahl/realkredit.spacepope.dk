@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateLoanAmortization,
   getDefaultAfdragsfriYears,
+  estimateRemainingAfdragsfriYears,
   principalFromCash,
 } from '../amortization';
 import { calculateRefinancing } from '../refinancing';
@@ -151,5 +152,22 @@ describe('P0/P1 regression: live BondLoan normalisation', () => {
     const loans = normaliseLiveLoans(raw);
     expect(loans).toHaveLength(1);
     expect(loans[0].name).toBe('ok');
+  });
+});
+
+describe('P0/P1 regression: elapsed years uses original term (not hardcoded 30)', () => {
+  it('for a 20-år bond with 15 years left and 10-år IO, elapsed=5 → 5 IO left', () => {
+    expect(estimateRemainingAfdragsfriYears(15, 20, 10)).toBe(5);
+  });
+
+  it('does not wipe IO on short maturity when remaining ≈ original term proxy', () => {
+    // Old bug: elapsed = 30 - 5 = 25 → remaining IO = 0 for a ~5-year left bond
+    expect(estimateRemainingAfdragsfriYears(5, 5, 10)).toBe(5);
+  });
+
+  it('caps remaining IO at remainingYears', () => {
+    expect(estimateRemainingAfdragsfriYears(3, 30, 10)).toBe(0);
+    expect(estimateRemainingAfdragsfriYears(8, 30, 10)).toBe(0); // elapsed 22
+    expect(estimateRemainingAfdragsfriYears(25, 30, 10)).toBe(5);
   });
 });

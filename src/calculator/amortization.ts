@@ -13,6 +13,20 @@ export function getDefaultAfdragsfriYears(loan: BondLoan): number {
   return 10;
 }
 
+
+/**
+ * Remaining interest-only years given original bond term and years left on the loan.
+ * Uses loebetid / maturity-derived original term — never assumes 30 years blindly.
+ */
+export function estimateRemainingAfdragsfriYears(
+  remainingYears: number,
+  originalTermYears: number,
+  maxOriginalAfdragsfri: number
+): number {
+  const elapsedYears = Math.max(0, originalTermYears - remainingYears);
+  return Math.max(0, Math.min(remainingYears, maxOriginalAfdragsfri - elapsedYears));
+}
+
 /**
  * Safe conversion from cash amount to nominal principal.
  * Guards against kurs <= 0 (would otherwise yield Infinity/NaN).
