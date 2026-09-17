@@ -26,7 +26,7 @@ describe('maxLoanAt80Ltv', () => {
   });
 });
 
-describe('maxPossibleFrivaerdi (fee-naive / slider hard max)', () => {
+describe('maxPossibleFrivaerdi (fee-naive reference / upper bound)', () => {
   it('subtracts redemption cash from 80% LTV room', () => {
     expect(maxPossibleFrivaerdi(3_000_000, 2_000_000, 100)).toBe(400_000);
   });
@@ -42,12 +42,12 @@ describe('maxPossibleFrivaerdi (fee-naive / slider hard max)', () => {
   });
 
   it('example pv=2.475M debt=1.78M redemption=100 → 200_000 (excl. fees)', () => {
-    // floor(2_475_000 * 0.8 - 1_780_000) = 200_000 — hard slider max
+    // floor(2_475_000 * 0.8 - 1_780_000) = 200_000 — fee-naive reference
     expect(maxPossibleFrivaerdi(2_475_000, 1_780_000, 100)).toBe(200_000);
   });
 });
 
-describe('cost-aware friværdi (fees + kurs; soft-warning helper)', () => {
+describe('cost-aware friværdi (fees + kurs; strategy-specific hard slider max)', () => {
   // Example from bug report:
   // pv=2475000, debt=1780000, cash=200000,
   // old 5% 2053 med afdrag (kurs 100), new F-kort med afdrag (kurs 100.3)
@@ -77,13 +77,42 @@ describe('cost-aware friværdi (fees + kurs; soft-warning helper)', () => {
     bidragsSats: [0.005, 0.0105, 0.0175],
   };
 
-  it('naive slider max is 200k; cost-aware soft-warning max is strictly lower', () => {
+  it('naive reference max is 200k; strategy-specific cost-aware hard max is strictly lower', () => {
     const naive = maxPossibleFrivaerdi(2_475_000, 1_780_000, 100);
     expect(naive).toBe(200_000);
 
-    const costAware = maxCostAwareFrivaerdi(exampleInputs, 'both');
-    expect(costAware).toBeLessThan(naive);
-    expect(costAware).toBeGreaterThan(0);
+    const capA = maxCostAwareFrivaerdi(exampleInputs, 'omlaegning');
+    const capB = maxCostAwareFrivaerdi(exampleInputs, 'tillaeg');
+    expect(capA).toBeLessThan(naive);
+    expect(capB).toBeLessThan(naive);
+    expect(capA).toBeGreaterThan(0);
+    expect(capB).toBeGreaterThan(0);
+  });
+
+  it('prevents example 200k overage for active strategy (F-kort @ 100.3)', () => {
+    const max80 = maxLoanAt80Ltv(2_475_000);
+    // At naive 200k, both A and B exceed 80% LTV after fees+kurs
+    expect(estimateOptionANyHovedstol(exampleInputs, 200_000)).toBeGreaterThan(max80);
+    expect(estimateOptionBTotalNominal(exampleInputs, 200_000)).toBeGreaterThan(max80);
+
+    const capA = maxCostAwareFrivaerdi(exampleInputs, 'omlaegning');
+    const capB = maxCostAwareFrivaerdi(exampleInputs, 'tillaeg');
+    expect(capA).toBeLessThan(200_000);
+    expect(capB).toBeLessThan(200_000);
+    expect(estimateOptionANyHovedstol(exampleInputs, capA)).toBeLessThanOrEqual(max80);
+    expect(estimateOptionBTotalNominal(exampleInputs, capB)).toBeLessThanOrEqual(max80);
+  });
+
+  it('does not use both-cap for strategy A when B is tighter (below-pari new kurs)', () => {
+    const lowKurs = { ...exampleInputs, newKurs: 94 };
+    const capA = maxCostAwareFrivaerdi(lowKurs, 'omlaegning');
+    const capB = maxCostAwareFrivaerdi(lowKurs, 'tillaeg');
+    const both = maxCostAwareFrivaerdi(lowKurs, 'both');
+    // both === min(A,B); slider must use strategy-specific, not both
+    expect(both).toBe(Math.min(capA, capB));
+    // With below-pari kurs, A is typically much tighter than B
+    expect(capA).toBeLessThan(capB);
+    expect(capB).toBeGreaterThan(65_000); // B still has meaningful room vs ~65k both-crush
   });
 
   it('Option B total nominal at naive 200k cashout exceeds 80% LTV', () => {
@@ -177,10 +206,7 @@ describe('buildLtvFieldErrors', () => {
     });
     expect(errors.some((e) => e.id === 'ltv-frivaerdi')).toBe(true);
     expect(errors.find((e) => e.id === 'ltv-frivaerdi')!.message).toMatch(
-      /ekskl\. stiftelsesomkostninger/i,
-    );
-    expect(errors.find((e) => e.id === 'ltv-frivaerdi')!.message).not.toMatch(
-      /inkl\. stiftelsesomkostninger/i,
+      /inkl\. medfinansierede omkostninger/i,
     );
   });
 

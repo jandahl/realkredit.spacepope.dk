@@ -1,12 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import type { LoanAmortizationResult } from '../calculator/types';
 import { formatKr } from '../utils/formatters';
+import { computeBreakevenSeries } from '../utils/breakeven';
 import { Info, Lightbulb } from 'lucide-react';
 
 interface BreakevenChartProps {
   existingSchedule: LoanAmortizationResult;
   newSchedule: LoanAmortizationResult;
   maxYears: number;
+  /** Optional; cashout is already in newSchedule — used only for caption. */
   frivaerdiUdbetalt?: number;
   onOpenDumbIdeas?: () => void;
 }
@@ -22,75 +24,20 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
 
   const totalQuarters = Math.round(maxYears * 4);
 
-  // Compute quarter-by-quarter breakeven data:
-  // deltaRestgaeld = (newRestgaeld - frivaerdiUdbetalt) - oldRestgaeld
-  // deltaYdelse = newYdelseEfterSkat - oldYdelseEfterSkat
-  // cumsumDeltaYdelse = sum of deltaYdelse up to quarter q
-  // breakevenBalance = cumsumDeltaYdelse + deltaRestgaeld
-  const { dataPoints, breakevenCrossing } = useMemo(() => {
-    let cumsum = 0;
-    const points: {
-      quarter: number;
-      year: number;
-      deltaRestgaeld: number;
-      cumsumYdelse: number;
-      balance: number;
-    }[] = [];
+  // Regression: never subtract frivaerdiUdbetalt from restgæld each quarter —
+  // cashout is already financed into newSchedule.hovedstol. Re-subtracting
+  // shifted the curve by ≈−cashout for the whole horizon (broken at 200k).
+  const { dataPoints, breakevenCrossing } = useMemo(
+    () => computeBreakevenSeries(existingSchedule, newSchedule, maxYears),
+    [existingSchedule, newSchedule, maxYears],
+  );
 
-    const effectiveCashout = frivaerdiUdbetalt || 0;
+  const hasValidSeries =
+    dataPoints.length > 0 &&
+    totalQuarters > 0 &&
+    Number.isFinite(maxYears) &&
+    maxYears > 0;
 
-    // Quarter 0 (instant conversion result before first payment)
-    const initialDeltaRestgaeld = (newSchedule.hovedstol - effectiveCashout) - existingSchedule.hovedstol;
-    points.push({
-      quarter: 0,
-      year: 0,
-      deltaRestgaeld: initialDeltaRestgaeld,
-      cumsumYdelse: 0,
-      balance: initialDeltaRestgaeld,
-    });
-
-    let crossingQuarter: number | null = null;
-
-    for (let q = 0; q < totalQuarters; q++) {
-      const oldRow = existingSchedule.schedule[q] || {
-        endRestgaeld: 0,
-        ydelseEfterSkat: 0,
-      };
-      const newRow = newSchedule.schedule[q] || {
-        endRestgaeld: 0,
-        ydelseEfterSkat: 0,
-      };
-
-      const deltaYdelse = newRow.ydelseEfterSkat - oldRow.ydelseEfterSkat;
-      cumsum += deltaYdelse;
-
-      const deltaRest = (newRow.endRestgaeld - effectiveCashout) - oldRow.endRestgaeld;
-      const balance = cumsum + deltaRest;
-
-      const prevBal = points[points.length - 1].balance;
-      if (crossingQuarter === null && points.length > 0) {
-        if ((prevBal < 0 && balance >= 0) || (prevBal > 0 && balance <= 0)) {
-          const fraction = Math.abs(prevBal) / Math.abs(balance - prevBal);
-          crossingQuarter = q + fraction;
-        }
-      }
-
-      points.push({
-        quarter: q + 1,
-        year: (q + 1) / 4,
-        deltaRestgaeld: deltaRest,
-        cumsumYdelse: cumsum,
-        balance,
-      });
-    }
-
-    return {
-      dataPoints: points,
-      breakevenCrossing: crossingQuarter,
-    };
-  }, [existingSchedule, newSchedule, totalQuarters, frivaerdiUdbetalt]);
-
-  // Dimensions
   const width = 800;
   const height = 300;
   const padding = { top: 20, right: 30, bottom: 40, left: 80 };
@@ -98,7 +45,6 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
 
-  // Find min and max balance for Y scale
   const { minY, maxY } = useMemo(() => {
     let min = 0;
     let max = 0;
@@ -106,7 +52,6 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
       if (p.balance < min) min = p.balance;
       if (p.balance > max) max = p.balance;
     }
-    // Make sure 0 is comfortably centered or visible
     const absMax = Math.max(Math.abs(min), Math.abs(max), 50_000);
     return {
       minY: min < 0 ? -absMax * 1.15 : -50_000,
@@ -119,21 +64,27 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
   };
 
   const getXPos = (quarter: number) => {
+    if (totalQuarters <= 0) return padding.left;
     return padding.left + (quarter / totalQuarters) * plotWidth;
   };
 
   const zeroY = getYPos(0);
 
-  // SVG points for line
-  const polylinePoints = dataPoints
-    .map((p) => `${getXPos(p.quarter)},${getYPos(p.balance)}`)
-    .join(' ');
+  const polylinePoints = hasValidSeries
+    ? dataPoints.map((p) => `${getXPos(p.quarter)},${getYPos(p.balance)}`).join(' ')
+    : '';
 
-  // Area above / below zero
-  const areaPath = `M ${getXPos(0)},${zeroY} L ${polylinePoints} L ${getXPos(totalQuarters)},${zeroY} Z`;
+  // Area above / below zero — build from point list so path stays valid
+  let areaPath = '';
+  if (hasValidSeries && dataPoints.length > 0) {
+    const coords = dataPoints
+      .map((p) => `${getXPos(p.quarter)} ${getYPos(p.balance)}`)
+      .join(' L ');
+    areaPath = `M ${getXPos(0)} ${zeroY} L ${coords} L ${getXPos(totalQuarters)} ${zeroY} Z`;
+  }
 
-  // X-Ticks every 5 years
   const xTicks = useMemo(() => {
+    if (!hasValidSeries) return [];
     const ticks: { year: number; x: number }[] = [];
     const step = maxYears <= 10 ? 2 : 5;
     for (let y = 0; y <= maxYears; y += step) {
@@ -143,26 +94,26 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
       });
     }
     return ticks;
-  }, [maxYears, plotWidth, padding.left]);
+  }, [maxYears, plotWidth, padding.left, hasValidSeries]);
 
-  // Y-Ticks
   const yTicks = useMemo(() => {
+    if (!hasValidSeries) return [];
     const step = (maxY - minY) / 4;
     return Array.from({ length: 5 }, (_, i) => {
       const val = minY + step * i;
       return {
         val,
-        y: getYPos(val),
+        y: padding.top + plotHeight - ((val - minY) / (maxY - minY)) * plotHeight,
         label:
           Math.abs(val) >= 1_000_000
             ? `${(val / 1_000_000).toFixed(1).replace('.', ',')} mio.`
             : `${Math.round(val / 1_000)} t.`,
       };
     });
-  }, [minY, maxY, getYPos]);
+  }, [minY, maxY, hasValidSeries, plotHeight, padding.top]);
 
-  // Mouse hover
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!hasValidSeries) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const relativeX = (e.clientX - rect.left) / rect.width;
     const svgX = relativeX * width;
@@ -185,27 +136,29 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
         <div>
           <div className="flex items-center gap-2">
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Breakeven</h3>
-            {breakevenCrossing !== null ? (
+            {hasValidSeries && breakevenCrossing !== null ? (
               <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400">
                 Breakeven efter {Math.floor(breakevenCrossing / 4)} år og{' '}
                 {Math.round((breakevenCrossing % 4) * 3)} mdr.
               </span>
-            ) : dataPoints[0]?.balance < 0 ? (
+            ) : hasValidSeries && dataPoints[0]?.balance < 0 ? (
               <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400">
                 Nyt lån er fordelagtigt i hele løbetiden
               </span>
-            ) : (
+            ) : hasValidSeries ? (
               <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-400">
                 Nuværende lån har lavere samlede omkostninger
               </span>
-            )}
+            ) : null}
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Samlet økonomisk balance (restgældsforskel + akkumulerede ydelser efter skat)
+            {frivaerdiUdbetalt > 0
+              ? ' — inkl. medfinansieret udbetaling i nyt lån'
+              : ''}
           </p>
         </div>
 
-        {/* Legend & Action */}
         <div className="flex flex-wrap items-center gap-4 text-xs font-medium">
           <div className="flex items-center gap-1.5">
             <span className="h-0.5 w-4 bg-slate-400 border-dashed border-t border-slate-400" />
@@ -229,6 +182,11 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
         </div>
       </div>
 
+      {!hasValidSeries ? (
+        <div className="flex h-[200px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
+          Ingen amortiseringsdata til breakeven-graf
+        </div>
+      ) : (
       <div className="relative w-full overflow-hidden">
         <svg
           viewBox={`0 0 ${width} ${height}`}
@@ -236,7 +194,6 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
           onMouseMove={handleMouseMove}
           onMouseLeave={() => setHoveredQuarter(null)}
         >
-          {/* Grid lines */}
           {yTicks.map((tick) => (
             <g key={tick.val}>
               <line
@@ -259,7 +216,6 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
             </g>
           ))}
 
-          {/* X Axis ticks */}
           {xTicks.map((tick) => (
             <g key={tick.year}>
               <line
@@ -282,7 +238,6 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
             </g>
           ))}
 
-          {/* Zero Line (Key Reference) */}
           <line
             x1={padding.left}
             y1={zeroY}
@@ -293,20 +248,19 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
             strokeDasharray="5 5"
           />
 
-          {/* Area fill */}
-          <path d={areaPath} fill="#3b82f6" fillOpacity="0.08" />
+          {areaPath && <path d={areaPath} fill="#3b82f6" fillOpacity="0.08" />}
 
-          {/* Breakeven line */}
-          <polyline
-            fill="none"
-            stroke="#2563eb"
-            strokeWidth="2.5"
-            points={polylinePoints}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          {polylinePoints && (
+            <polyline
+              fill="none"
+              stroke="#2563eb"
+              strokeWidth="2.5"
+              points={polylinePoints}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )}
 
-          {/* Crossing point dot if exists */}
           {breakevenCrossing !== null && (
             <g>
               <circle
@@ -328,7 +282,6 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
             </g>
           )}
 
-          {/* Hover point and vertical guide */}
           {activePoint && (
             <g>
               <line
@@ -353,7 +306,6 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
           )}
         </svg>
 
-        {/* Hover Tooltip */}
         {activePoint && (
           <div
             className="pointer-events-none absolute top-2 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur-md dark:border-slate-700 dark:bg-slate-800/95 transition-all text-xs"
@@ -390,8 +342,8 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
           </div>
         )}
       </div>
+      )}
 
-      {/* Explanatory text from realkred.it */}
       <div className="mt-4 flex items-start gap-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3.5 text-xs text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800">
         <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
         <p className="leading-relaxed">

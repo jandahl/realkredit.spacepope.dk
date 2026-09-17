@@ -16,7 +16,7 @@ import type { AppMode } from '../utils/appMode';
 import { TillaegslaanComparator } from '../components/TillaegslaanComparator';
 import { ValidationToast } from '../components/ValidationToast';
 import { formatKr, formatKurs, formatPercent } from '../utils/formatters';
-import { maxLoanAt80Ltv, maxPossibleFrivaerdi as maxFrivaerdiExclFees, buildLtvFieldErrors } from '../utils/ltv';
+import { maxLoanAt80Ltv, maxCostAwareFrivaerdi, estimateOptionANyHovedstol, estimateOptionBTotalNominal, buildLtvFieldErrors } from '../utils/ltv';
 import { Sparkles, Banknote, HelpCircle, ChevronDown, ChevronUp, Receipt, Lightbulb, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface RefinancingViewProps {
@@ -187,19 +187,33 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
     }
   }, [activeNew]);
 
-  // Slider / hard max: fee-naive 80% LTV room (excl. stiftelsesomkostninger).
+  // Slider / hard max: strategy-specific cost-aware 80% LTV (fees + kurs→hovedstol).
+  // Do NOT use strategy "both" — that crushed A@below-pari while B still had room.
   const redemptionPrice = activeExisting ? Math.min(100, activeExisting.kurs > 0 ? activeExisting.kurs : 100) : 100;
+  const newKurs = activeNew && activeNew.kurs > 0 ? activeNew.kurs : 100;
   const maxDebtAt80 = maxLoanAt80Ltv(propertyValue);
-  const maxPossibleFrivaerdi = maxFrivaerdiExclFees(propertyValue, debt, redemptionPrice);
-
+  const cashoutLtvInputs = useMemo(
+    () => ({
+      propertyValue,
+      existingRestgaeld: debt,
+      existingKurs: redemptionPrice,
+      newKurs,
+    }),
+    [propertyValue, debt, redemptionPrice, newKurs],
+  );
+  const frivaerdiCapStrategy = frivaerdiStrategy; // 'omlaegning' | 'tillaeg'
+  const maxPossibleFrivaerdi = useMemo(
+    () => maxCostAwareFrivaerdi(cashoutLtvInputs, frivaerdiCapStrategy),
+    [cashoutLtvInputs, frivaerdiCapStrategy],
+  );
   const effectiveFrivaerdi = enableFrivaerdi ? Math.min(frivaerdiUdbetalt, maxPossibleFrivaerdi) : 0;
 
-  // Keep cashout within the fee-naive 80% LTV cap when inputs/kurs change
+  // Keep cashout within strategy-specific cost-aware 80% LTV when inputs/kurs/strategy change
   useEffect(() => {
     if (enableFrivaerdi && frivaerdiUdbetalt > maxPossibleFrivaerdi) {
       setFrivaerdiUdbetalt(maxPossibleFrivaerdi);
     }
-  }, [enableFrivaerdi, frivaerdiUdbetalt, maxPossibleFrivaerdi, setFrivaerdiUdbetalt]);
+  }, [enableFrivaerdi, frivaerdiUdbetalt, maxPossibleFrivaerdi, setFrivaerdiUdbetalt, frivaerdiStrategy]);
 
   const debtError = debt > maxDebtAt80;
   const frivaerdiError = enableFrivaerdi && frivaerdiUdbetalt > maxPossibleFrivaerdi;
@@ -214,6 +228,17 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
     frivaerdiAnchorId: 'field-frivaerdi',
   });
 
+  const computeMaxFri = (pv: number, nextDebt: number, strategy: 'omlaegning' | 'tillaeg' = frivaerdiStrategy) =>
+    maxCostAwareFrivaerdi(
+      {
+        propertyValue: pv,
+        existingRestgaeld: nextDebt,
+        existingKurs: redemptionPrice,
+        newKurs,
+      },
+      strategy,
+    );
+
   const handlePropertyBlur = (clampedProperty: number) => {
     const maxDebt = maxLoanAt80Ltv(clampedProperty);
     let nextDebt = debt;
@@ -222,7 +247,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       setDebt(maxDebt);
     }
     if (enableFrivaerdi) {
-      const maxFri = maxFrivaerdiExclFees(clampedProperty, nextDebt, redemptionPrice);
+      const maxFri = computeMaxFri(clampedProperty, nextDebt);
       if (frivaerdiUdbetalt > maxFri) {
         setFrivaerdiUdbetalt(maxFri);
       }
@@ -237,7 +262,17 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       setDebt(maxDebt);
     }
     if (enableFrivaerdi) {
-      const maxFri = maxFrivaerdiExclFees(propertyValue, nextDebt, redemptionPrice);
+      const maxFri = computeMaxFri(propertyValue, nextDebt);
+      if (frivaerdiUdbetalt > maxFri) {
+        setFrivaerdiUdbetalt(maxFri);
+      }
+    }
+  };
+
+  const handleFrivaerdiStrategyChange = (strategy: 'omlaegning' | 'tillaeg') => {
+    setFrivaerdiStrategy(strategy);
+    if (enableFrivaerdi) {
+      const maxFri = computeMaxFri(propertyValue, debt, strategy);
       if (frivaerdiUdbetalt > maxFri) {
         setFrivaerdiUdbetalt(maxFri);
       }
@@ -719,13 +754,13 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
                   min={0}
                   max={maxPossibleFrivaerdi > 0 ? maxPossibleFrivaerdi : 0}
                   step={5_000}
-                  helpText={`Maks. til 80 % LTV (ekskl. stiftelsesomkostninger): ${formatKr(maxPossibleFrivaerdi)}`}
+                  helpText={`Maks. til 80 % LTV inkl. medfinansierede omkostninger (valgt strategi): ${formatKr(maxPossibleFrivaerdi)}`}
                   showSlider={true}
                   fieldId="field-frivaerdi"
                   error={frivaerdiError}
                   errorMessage={
                     frivaerdiError
-                      ? `Maks. ${formatKr(maxPossibleFrivaerdi)} til 80 % LTV (ekskl. stiftelsesomkostninger). Justeres når du forlader feltet.`
+                      ? `Maks. ${formatKr(maxPossibleFrivaerdi)} til 80 % LTV inkl. medfinansierede omkostninger. Justeres når du forlader feltet.`
                       : undefined
                   }
                   onBlurValue={(clamped) => {
@@ -743,7 +778,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
                   <div className="flex items-center rounded-xl bg-slate-200/80 dark:bg-slate-800 p-1 text-xs font-semibold">
                     <button
                       type="button"
-                      onClick={() => setFrivaerdiStrategy('omlaegning')}
+                      onClick={() => handleFrivaerdiStrategyChange('omlaegning')}
                       className={`flex-1 py-2 px-3 rounded-lg text-center transition-all cursor-pointer ${
                         frivaerdiStrategy === 'omlaegning'
                           ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs font-bold'
@@ -754,7 +789,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setFrivaerdiStrategy('tillaeg')}
+                      onClick={() => handleFrivaerdiStrategyChange('tillaeg')}
                       className={`flex-1 py-2 px-3 rounded-lg text-center transition-all cursor-pointer ${
                         frivaerdiStrategy === 'tillaeg'
                           ? 'bg-emerald-600 text-white shadow-xs font-bold'
@@ -769,7 +804,21 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
                 <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1">
                   <span>Samlet belåning inkl. udtag:</span>
                   <span className="font-semibold text-slate-700 dark:text-slate-200">
-                    {formatKr(debt + frivaerdiUdbetalt)} ({Math.round(((debt + frivaerdiUdbetalt) / (propertyValue || 1)) * 100)} % LTV)
+                    {(() => {
+                      const cash = enableFrivaerdi ? frivaerdiUdbetalt : 0;
+                      let exposure: number;
+                      if (frivaerdiStrategy === 'tillaeg' && tillaegslaanComparison) {
+                        exposure = debt + tillaegslaanComparison.optionB_tillaegslaan.tillaegHovedstol;
+                      } else if (frivaerdiStrategy === 'tillaeg') {
+                        exposure = estimateOptionBTotalNominal(cashoutLtvInputs, cash);
+                      } else if (comparison) {
+                        exposure = comparison.nyHovedstol;
+                      } else {
+                        exposure = estimateOptionANyHovedstol(cashoutLtvInputs, cash);
+                      }
+                      const ltvPct = Math.round((exposure / (propertyValue || 1)) * 100);
+                      return `${formatKr(exposure)} (${ltvPct} % LTV)`;
+                    })()}
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-500 dark:text-slate-400 leading-normal">
