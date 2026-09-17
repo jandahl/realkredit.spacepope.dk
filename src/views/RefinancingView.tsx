@@ -16,6 +16,7 @@ import type { AppMode } from '../utils/appMode';
 import { TillaegslaanComparator } from '../components/TillaegslaanComparator';
 import { ValidationToast } from '../components/ValidationToast';
 import { formatKr, formatKurs, formatPercent } from '../utils/formatters';
+import { computeBreakevenSeries } from '../utils/breakeven';
 import { maxLoanAt80Ltv, maxCostAwareFrivaerdi, estimateOptionANyHovedstol, estimateOptionBTotalNominal, buildLtvFieldErrors } from '../utils/ltv';
 import { Sparkles, Banknote, HelpCircle, ChevronDown, ChevronUp, Receipt, Lightbulb, TrendingUp, TrendingDown } from 'lucide-react';
 
@@ -404,29 +405,6 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
     return seriesList;
   }, [comparison, tillaegslaanComparison, activeExisting, activeNew]);
 
-  // Compute breakeven years for analysis
-  const breakevenYears = useMemo<number | null>(() => {
-    if (!comparison) return null;
-    const totalQuarters = Math.round(comparison.maxYears * 4);
-    let cumsum = 0;
-    const initialDelta = comparison.newSchedule.hovedstol - comparison.existingSchedule.hovedstol;
-    let prevBalance = initialDelta;
-
-    for (let q = 0; q < totalQuarters; q++) {
-      const oldRow = comparison.existingSchedule.schedule[q] || { endRestgaeld: 0, ydelseEfterSkat: 0 };
-      const newRow = comparison.newSchedule.schedule[q] || { endRestgaeld: 0, ydelseEfterSkat: 0 };
-      cumsum += (newRow.ydelseEfterSkat - oldRow.ydelseEfterSkat);
-      const deltaRest = newRow.endRestgaeld - oldRow.endRestgaeld;
-      const balance = cumsum + deltaRest;
-
-      if (prevBalance < 0 && balance >= 0) {
-        const fraction = -prevBalance / (balance - prevBalance);
-        return (q + fraction) / 4;
-      }
-      prevBalance = balance;
-    }
-    return null;
-  }, [comparison]);
 
   // Option B combined schedule for amortization table
   const optionBSchedule = useMemo<LoanAmortizationResult | null>(() => {
@@ -486,6 +464,32 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       schedule,
     };
   }, [tillaegslaanComparison, comparison]);
+
+  // Option B active? (same rule as display metrics; needed for breakeven wiring)
+  const optionBAvailableForBe = Boolean(tillaegslaanComparison);
+  const isOptionBForBreakeven = isReport
+    ? reportStrategy === 'b' && optionBAvailableForBe
+    : enableFrivaerdi && frivaerdiStrategy === 'tillaeg' && optionBAvailableForBe;
+
+  // Compute breakeven years — same schedules + cashout as BreakevenChart
+  const breakevenYears = useMemo<number | null>(() => {
+    if (!comparison) return null;
+    const existing = comparison.existingSchedule;
+    const neu =
+      isOptionBForBreakeven && optionBSchedule
+        ? optionBSchedule
+        : comparison.newSchedule;
+    const cashout = effectiveFrivaerdi;
+    const maxYears =
+      Math.max(existing.totalQuarters, neu.totalQuarters) / 4 || comparison.maxYears;
+    const { breakevenCrossing } = computeBreakevenSeries(existing, neu, maxYears, cashout);
+    return breakevenCrossing === null ? null : breakevenCrossing / 4;
+  }, [
+    comparison,
+    isOptionBForBreakeven,
+    optionBSchedule,
+    effectiveFrivaerdi,
+  ]);
 
   if (!activeExisting || !activeNew || !comparison) {
     return <div className="p-6 text-center text-slate-500 dark:text-slate-400">Indlæser lånedata...</div>;
@@ -1220,12 +1224,23 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
         />
       )}
 
-      {/* Breakeven Graph (scaled to longest loan duration) */}
+      {/* Breakeven Graph — Option B uses combined existing+tillæg as "new" */}
       <BreakevenChart
         existingSchedule={comparison.existingSchedule}
-        newSchedule={comparison.newSchedule}
-        maxYears={comparison.maxYears}
-        frivaerdiUdbetalt={comparison.frivaerdiUdbetalt}
+        newSchedule={
+          isOptionBActive && optionBSchedule
+            ? optionBSchedule
+            : comparison.newSchedule
+        }
+        maxYears={
+          isOptionBActive && optionBSchedule
+            ? Math.max(
+                comparison.existingSchedule.totalQuarters,
+                optionBSchedule.totalQuarters,
+              ) / 4
+            : comparison.maxYears
+        }
+        frivaerdiUdbetalt={effectiveFrivaerdi}
         onOpenDumbIdeas={() => setShowDumbIdeas(true)}
       />
 

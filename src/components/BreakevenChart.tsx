@@ -8,7 +8,7 @@ interface BreakevenChartProps {
   existingSchedule: LoanAmortizationResult;
   newSchedule: LoanAmortizationResult;
   maxYears: number;
-  /** Optional; cashout is already in newSchedule — used only for caption. */
+  /** Friværdi udbetalt — credited as constant formue in the balance. */
   frivaerdiUdbetalt?: number;
   onOpenDumbIdeas?: () => void;
 }
@@ -22,18 +22,23 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
 }) => {
   const [hoveredQuarter, setHoveredQuarter] = useState<number | null>(null);
 
-  const totalQuarters = Math.round(maxYears * 4);
-
-  // Regression: never subtract frivaerdiUdbetalt from restgæld each quarter —
-  // cashout is already financed into newSchedule.hovedstol. Re-subtracting
-  // shifted the curve by ≈−cashout for the whole horizon (broken at 200k).
   const { dataPoints, breakevenCrossing } = useMemo(
-    () => computeBreakevenSeries(existingSchedule, newSchedule, maxYears),
-    [existingSchedule, newSchedule, maxYears],
+    () =>
+      computeBreakevenSeries(
+        existingSchedule,
+        newSchedule,
+        maxYears,
+        frivaerdiUdbetalt,
+      ),
+    [existingSchedule, newSchedule, maxYears, frivaerdiUdbetalt],
   );
 
+  // Horizon matches computeBreakevenSeries (max of schedules + maxYears·4)
+  const totalQuarters = Math.max(0, dataPoints.length - 1);
+  const axisYears = totalQuarters > 0 ? totalQuarters / 4 : maxYears;
+
   const hasValidSeries =
-    dataPoints.length > 0 &&
+    dataPoints.length > 1 &&
     totalQuarters > 0 &&
     Number.isFinite(maxYears) &&
     maxYears > 0;
@@ -74,7 +79,6 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
     ? dataPoints.map((p) => `${getXPos(p.quarter)},${getYPos(p.balance)}`).join(' ')
     : '';
 
-  // Area above / below zero — build from point list so path stays valid
   let areaPath = '';
   if (hasValidSeries && dataPoints.length > 0) {
     const coords = dataPoints
@@ -84,17 +88,17 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
   }
 
   const xTicks = useMemo(() => {
-    if (!hasValidSeries) return [];
+    if (!hasValidSeries || axisYears <= 0) return [];
     const ticks: { year: number; x: number }[] = [];
-    const step = maxYears <= 10 ? 2 : 5;
-    for (let y = 0; y <= maxYears; y += step) {
+    const step = axisYears <= 10 ? 2 : 5;
+    for (let y = 0; y <= axisYears + 1e-9; y += step) {
       ticks.push({
-        year: y,
-        x: padding.left + (y / maxYears) * plotWidth,
+        year: Math.round(y * 10) / 10,
+        x: padding.left + (y / axisYears) * plotWidth,
       });
     }
     return ticks;
-  }, [maxYears, plotWidth, padding.left, hasValidSeries]);
+  }, [axisYears, plotWidth, padding.left, hasValidSeries]);
 
   const yTicks = useMemo(() => {
     if (!hasValidSeries) return [];
@@ -130,6 +134,10 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
   const activePoint =
     hoveredQuarter !== null ? dataPoints[hoveredQuarter] || null : null;
 
+  // Explicit fills — Tailwind fill-* on SVG <text> is flaky in dark mode
+  const tickFill = '#94a3b8';
+  const labelFill = '#f43f5e';
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
@@ -152,10 +160,8 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
             ) : null}
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Samlet økonomisk balance (restgældsforskel + akkumulerede ydelser efter skat)
-            {frivaerdiUdbetalt > 0
-              ? ' — inkl. medfinansieret udbetaling i nyt lån'
-              : ''}
+            Formuejusteret balance: Σ(Δydelse) + (R_nyt − R_gammel)
+            {frivaerdiUdbetalt > 0 ? ` − udbetaling (${formatKr(frivaerdiUdbetalt)})` : ''}
           </p>
         </div>
 
@@ -183,14 +189,20 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
       </div>
 
       {!hasValidSeries ? (
-        <div className="flex h-[200px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
-          Ingen amortiseringsdata til breakeven-graf
+        <div className="flex h-[200px] flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
+          <span className="font-medium text-slate-600 dark:text-slate-300">
+            Ingen gyldig breakeven-serie
+          </span>
+          <span className="text-xs max-w-md">
+            Mangler amortiseringsdata, eller begge lån har ugyldig hovedstol / løbetid. Vælg
+            eksisterende og nyt lån, og sørg for at beregningen er fuldført.
+          </span>
         </div>
       ) : (
       <div className="relative w-full overflow-hidden">
         <svg
           viewBox={`0 0 ${width} ${height}`}
-          className="w-full h-auto cursor-crosshair select-none"
+          className="w-full h-auto cursor-crosshair select-none text-slate-800 dark:text-slate-200"
           onMouseMove={handleMouseMove}
           onMouseLeave={() => setHoveredQuarter(null)}
         >
@@ -201,15 +213,16 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
                 y1={tick.y}
                 x2={width - padding.right}
                 y2={tick.y}
-                stroke="currentColor"
-                className="text-slate-100 dark:text-slate-800"
+                stroke="#e2e8f0"
+                className="dark:opacity-40"
                 strokeDasharray="4 4"
               />
               <text
                 x={padding.left - 10}
                 y={tick.y + 4}
                 textAnchor="end"
-                className="fill-slate-400 dark:fill-slate-500 text-[11px] font-mono"
+                fill={tickFill}
+                style={{ fontSize: 11, fontFamily: 'ui-monospace, monospace' }}
               >
                 {tick.label}
               </text>
@@ -223,15 +236,16 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
                 y1={padding.top}
                 x2={tick.x}
                 y2={height - padding.bottom}
-                stroke="currentColor"
-                className="text-slate-100 dark:text-slate-800"
+                stroke="#e2e8f0"
+                className="dark:opacity-40"
                 strokeDasharray="4 4"
               />
               <text
                 x={tick.x}
                 y={height - padding.bottom + 20}
                 textAnchor="middle"
-                className="fill-slate-400 dark:fill-slate-500 text-[11px] font-mono"
+                fill={tickFill}
+                style={{ fontSize: 11, fontFamily: 'ui-monospace, monospace' }}
               >
                 År {tick.year}
               </text>
@@ -275,7 +289,8 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
                 x={getXPos(breakevenCrossing)}
                 y={zeroY - 12}
                 textAnchor="middle"
-                className="fill-rose-600 dark:fill-rose-400 text-[11px] font-bold"
+                fill={labelFill}
+                style={{ fontSize: 11, fontWeight: 700 }}
               >
                 Breakeven
               </text>
@@ -289,8 +304,7 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
                 y1={padding.top}
                 x2={getXPos(activePoint.quarter)}
                 y2={height - padding.bottom}
-                stroke="currentColor"
-                className="text-slate-400 dark:text-slate-500"
+                stroke="#94a3b8"
                 strokeWidth="1.5"
                 strokeDasharray="3 3"
               />
@@ -338,6 +352,12 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
                 <span>Restgældsforskel:</span>
                 <span>{formatKr(activePoint.deltaRestgaeld)}</span>
               </div>
+              {frivaerdiUdbetalt > 0 && (
+                <div className="flex justify-between gap-4 text-slate-500 dark:text-slate-400">
+                  <span>Udbetaling (formue):</span>
+                  <span>−{formatKr(frivaerdiUdbetalt)}</span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -347,12 +367,11 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
       <div className="mt-4 flex items-start gap-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3.5 text-xs text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800">
         <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
         <p className="leading-relaxed">
-          <strong className="text-slate-800 dark:text-slate-200">Breakeven-punktet</strong> er det
-          tidspunkt, hvor linjen krydser 0 på y-aksen. Dette er det tidspunkt, hvor de akkumulerede
-          ydelser (det samlede beløb, du har betalt indtil videre) og restgælden (det beløb, du stadig
-          skylder) er de samme for begge lån. Når balancen er <em>negativ</em>, er du bedre stillet
-          med det nye lån; når den er <em>positiv</em>, ville du have været bedre stillet med det
-          nuværende lån.
+          <strong className="text-slate-800 dark:text-slate-200">Negativ balance</strong> betyder, at
+          det nye lån (inkl. evt. friværdiudbetaling som formue) er foran — du er bedre stillet end
+          med det nuværende lån alene. Positiv balance betyder det omvendte. Breakeven er hvor
+          linjen krydser 0. Udbetalingen trækkes som konstant formuekredit (ikke som separat
+          amortisering af restgælden).
         </p>
       </div>
     </div>
