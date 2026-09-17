@@ -15,8 +15,33 @@ export function getDefaultAfdragsfriYears(loan: BondLoan): number {
 
 
 /**
+ * Original product term in years for a bond loan.
+ * Preference order:
+ * 1. loebetid (years) if present and > 0
+ * 2. maxTerminer / 4 (product term in quarters → years) if present and > 0
+ * 3. cheap name heuristics (/20 års/, /30 års/)
+ * 4. documented fallback: 30 (standard DK mortgage term)
+ *
+ * Never uses remaining years-to-maturity — that makes elapsed ≈ 0 and overstates
+ * remaining afdragsfri until the user moves the slider.
+ */
+export function getOriginalTermYears(loan: BondLoan): number {
+  if (loan.loebetid != null && loan.loebetid > 0) {
+    return Math.max(1, Math.min(30, loan.loebetid));
+  }
+  if (loan.maxTerminer != null && loan.maxTerminer > 0) {
+    return Math.max(1, Math.min(30, loan.maxTerminer / 4));
+  }
+  const name = loan.name ?? '';
+  if (/30\s*års?/i.test(name)) return 30;
+  if (/20\s*års?/i.test(name)) return 20;
+  // Last resort: standard Danish mortgage term — not remaining maturity
+  return 30;
+}
+
+/**
  * Remaining interest-only years given original bond term and years left on the loan.
- * Uses loebetid / maturity-derived original term — never assumes 30 years blindly.
+ * Pair with getOriginalTermYears — never pass remaining maturity as originalTermYears.
  */
 export function estimateRemainingAfdragsfriYears(
   remainingYears: number,
