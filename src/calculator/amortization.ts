@@ -2,6 +2,29 @@ import type { BondLoan, LoanAmortizationResult, QuarterlyScheduleRow } from './t
 
 export const STANDARD_TAX_DEDUCTION_RATE = 0.256; // 25.6% Danish rentefradrag
 
+
+/**
+ * Default interest-only years for a bond product.
+ * 30-år afdragsfri products are not hard-capped at 10 years.
+ */
+export function getDefaultAfdragsfriYears(loan: BondLoan): number {
+  if (!loan.afdragsfri) return 0;
+  if (/30\s*års?\s*afdragsfri/i.test(loan.name)) return 30;
+  return 10;
+}
+
+/**
+ * Safe conversion from cash amount to nominal principal.
+ * Guards against kurs <= 0 (would otherwise yield Infinity/NaN).
+ */
+export function principalFromCash(cashAmount: number, kurs: number): number {
+  if (!(kurs > 0) || !Number.isFinite(kurs)) {
+    return cashAmount;
+  }
+  return (cashAmount / kurs) * 100;
+}
+
+
 /**
  * Calculates weighted contribution rate (bidragssats) across LTV intervals [0, 40], [40, 60], [60, 80].
  */
@@ -59,9 +82,14 @@ export function calculateLoanAmortization(
   const annualRate = loan.rente / 100;
   const quarterlyRate = annualRate / 4;
 
-  // Afdragsfri quarters: e.g. 10 years = 40 quarters
+  // Afdragsfri quarters: derived from product (name / maxTerminer), not hard-capped at 40
+  const defaultYears = getDefaultAfdragsfriYears(loan);
   const defaultAfdragsfriQuarters = loan.afdragsfri
-    ? Math.min(loan.maxTerminer ? loan.maxTerminer : totalQuarters, totalQuarters >= 40 ? 40 : totalQuarters)
+    ? Math.min(
+        totalQuarters,
+        defaultYears * 4,
+        loan.maxTerminer ?? defaultYears * 4
+      )
     : 0;
 
   const afdragsfriQuarters = customAfdragsfriYears !== undefined
@@ -157,7 +185,8 @@ export function calculateLoanAmortization(
   const totalBetalt = schedule.reduce((acc, row) => acc + row.ydelseFoerSkat, 0);
 
   const effectiveBidrag = afdragsfriQuarters > 0 ? interestOnlyWeightedBidrag : regularWeightedBidrag;
-  const kursvaerdi = (principal * loan.kurs) / 100;
+  const safeKurs = loan.kurs > 0 ? loan.kurs : 100;
+  const kursvaerdi = (principal * safeKurs) / 100;
 
   return {
     hovedstol: principal,

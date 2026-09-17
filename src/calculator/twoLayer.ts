@@ -1,8 +1,14 @@
 import type { BondLoan, TwoLayerLoanResult, QuarterlyScheduleRow } from './types';
-import { calculateLoanAmortization, STANDARD_TAX_DEDUCTION_RATE } from './amortization';
+import {
+  calculateLoanAmortization,
+  STANDARD_TAX_DEDUCTION_RATE,
+  principalFromCash,
+  getDefaultAfdragsfriYears,
+} from './amortization';
 
 /**
  * Calculates a two-layer mortgage loan (to-lags belåning) splitting into two LTV tiers.
+ * Honour each bond's loebetid when totalQuarters is omitted (do not always force 120).
  */
 export function calculateTwoLayerLoan(
   propertyValue: number,
@@ -10,41 +16,54 @@ export function calculateTwoLayerLoan(
   splitLtvPercent: number, // e.g. 40 or 60%
   layer1Loan: BondLoan,
   layer2Loan: BondLoan,
-  totalQuarters: number = 120,
-  taxDeductionRate: number = STANDARD_TAX_DEDUCTION_RATE
+  totalQuarters?: number,
+  taxDeductionRate: number = STANDARD_TAX_DEDUCTION_RATE,
+  layer1AfdragsfriYears?: number,
+  layer2AfdragsfriYears?: number
 ): TwoLayerLoanResult {
+  const layer1DefaultQuarters = (layer1Loan.loebetid ?? 30) * 4;
+  const layer2DefaultQuarters = (layer2Loan.loebetid ?? 30) * 4;
+  const resolvedQuarters = totalQuarters ?? Math.max(layer1DefaultQuarters, layer2DefaultQuarters);
+
   const maxLtv = Math.min(80, (totalLoanAmount / propertyValue) * 100);
   const actualSplitLtv = Math.min(splitLtvPercent, maxLtv);
 
-  // Layer 1 amount: 0 to actualSplitLtv
   const layer1Amount = (propertyValue * actualSplitLtv) / 100;
-  // Layer 2 amount: remaining amount up to maxLtv
   const layer2Amount = Math.max(0, totalLoanAmount - layer1Amount);
 
   const layer1LtvRange: [number, number] = [0, actualSplitLtv];
   const layer2LtvRange: [number, number] = [actualSplitLtv, maxLtv];
 
-  // Convert cash needed to nominal principal if bond price is below 100
-  const layer1Principal = (layer1Amount / layer1Loan.kurs) * 100;
-  const layer2Principal = layer2Amount > 0 ? (layer2Amount / layer2Loan.kurs) * 100 : 0;
+  const layer1Principal = principalFromCash(layer1Amount, layer1Loan.kurs);
+  const layer2Principal = layer2Amount > 0 ? principalFromCash(layer2Amount, layer2Loan.kurs) : 0;
+
+  const layer1Io =
+    layer1AfdragsfriYears !== undefined
+      ? layer1AfdragsfriYears
+      : getDefaultAfdragsfriYears(layer1Loan) || undefined;
+  const layer2Io =
+    layer2AfdragsfriYears !== undefined
+      ? layer2AfdragsfriYears
+      : getDefaultAfdragsfriYears(layer2Loan) || undefined;
 
   const layer1Result = calculateLoanAmortization(
     layer1Loan,
-    totalQuarters,
+    resolvedQuarters,
     layer1Principal,
     layer1LtvRange,
-    taxDeductionRate
+    taxDeductionRate,
+    layer1Io
   );
 
   const layer2Result = calculateLoanAmortization(
     layer2Loan,
-    totalQuarters,
+    resolvedQuarters,
     layer2Principal,
     layer2LtvRange,
-    taxDeductionRate
+    taxDeductionRate,
+    layer2Io
   );
 
-  // Merge schedules quarter by quarter
   const combinedSchedule: QuarterlyScheduleRow[] = [];
   const maxQuarters = Math.max(layer1Result.schedule.length, layer2Result.schedule.length);
 

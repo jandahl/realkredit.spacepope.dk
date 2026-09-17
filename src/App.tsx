@@ -30,7 +30,7 @@ export const App: React.FC = () => {
 
   const [optagelseLoans, setOptagelseLoans] = useState<BondLoan[]>(FALLBACK_OPTAGELSE_LAAN);
   const [indfrielseLoans, setIndfrielseLoans] = useState<BondLoan[]>(FALLBACK_INDFRIELSE_LAAN);
-  const [rateSource, setRateSource] = useState<'live' | 'fallback'>('fallback');
+  const [rateSource, setRateSource] = useState<'live' | 'fallback' | 'partial'>('fallback');
   const [isLoadingRates, setIsLoadingRates] = useState<boolean>(false);
   const [lastUpdated, setLastUpdated] = useState<string>(new Date().toLocaleTimeString('da-DK'));
 
@@ -44,7 +44,13 @@ export const App: React.FC = () => {
 
       setOptagelseLoans(optagelseRes.loans);
       setIndfrielseLoans(indfrielseRes.loans);
-      setRateSource(optagelseRes.source === 'live' || indfrielseRes.source === 'live' ? 'live' : 'fallback');
+      if (optagelseRes.source === 'live' && indfrielseRes.source === 'live') {
+        setRateSource('live');
+      } else if (optagelseRes.source === 'live' || indfrielseRes.source === 'live') {
+        setRateSource('partial');
+      } else {
+        setRateSource('fallback');
+      }
       setLastUpdated(new Date().toLocaleTimeString('da-DK'));
     } catch (err) {
       console.error('Error loading rates:', err);

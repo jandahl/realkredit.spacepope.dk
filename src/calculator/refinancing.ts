@@ -1,5 +1,5 @@
 import type { BondLoan, RefinancingComparison } from './types';
-import { calculateLoanAmortization, STANDARD_TAX_DEDUCTION_RATE } from './amortization';
+import { calculateLoanAmortization, STANDARD_TAX_DEDUCTION_RATE, principalFromCash } from './amortization';
 
 /**
  * Calculates a mortgage refinancing (omlægning / konvertering) comparison,
@@ -40,19 +40,19 @@ export function calculateRefinancing(
   // tinglysningVariabel = Math.max(0, nyHovedstol - existingRestgaeld) * 0.0145 (rounded up to nearest 100)
   
   let samletKontantbehov = indfrielsesBeloeb + Math.max(0, frivaerdiUdbetalt) + tinglysningFast + gebyrerInstitutOgBank;
-  let nyHovedstol = (samletKontantbehov / newLoan.kurs) * 100;
+  let nyHovedstol = principalFromCash(samletKontantbehov, newLoan.kurs);
   let tinglysningVariabel = Math.ceil((Math.max(0, nyHovedstol - existingRestgaeld) * 0.0145) / 100) * 100;
   let kurtage = Math.round(samletKontantbehov * 0.0015);
   let samledeOmkostninger = tinglysningFast + tinglysningVariabel + kurtage + gebyrerInstitutOgBank;
 
   // Refine once with exact variable registration fee and brokerage included
   samletKontantbehov = indfrielsesBeloeb + Math.max(0, frivaerdiUdbetalt) + samledeOmkostninger;
-  nyHovedstol = (samletKontantbehov / newLoan.kurs) * 100;
+  nyHovedstol = principalFromCash(samletKontantbehov, newLoan.kurs);
   tinglysningVariabel = Math.ceil((Math.max(0, nyHovedstol - existingRestgaeld) * 0.0145) / 100) * 100;
   kurtage = Math.round(samletKontantbehov * 0.0015);
   samledeOmkostninger = tinglysningFast + tinglysningVariabel + kurtage + gebyrerInstitutOgBank;
   samletKontantbehov = indfrielsesBeloeb + Math.max(0, frivaerdiUdbetalt) + samledeOmkostninger;
-  nyHovedstol = (samletKontantbehov / newLoan.kurs) * 100;
+  nyHovedstol = principalFromCash(samletKontantbehov, newLoan.kurs);
 
   const tinglysningTotal = tinglysningFast + tinglysningVariabel;
   const kurstabOptagelse = Math.max(0, nyHovedstol - samletKontantbehov);

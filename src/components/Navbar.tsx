@@ -18,7 +18,7 @@ export type ViewType = 'refinancing' | 'standard' | 'twolayer';
 interface NavbarProps {
   currentView: ViewType;
   onSelectView: (view: ViewType) => void;
-  rateSource: 'live' | 'fallback';
+  rateSource: 'live' | 'fallback' | 'partial';
   isLoadingRates: boolean;
   onRefreshRates: () => void;
   lastUpdated: string;
@@ -139,15 +139,23 @@ export const Navbar: React.FC<NavbarProps> = ({
               className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium ${
                 rateSource === 'live'
                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800'
-                  : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800'
+                  : rateSource === 'partial'
+                    ? 'bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-950/30 dark:text-sky-400 dark:border-sky-800'
+                    : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800'
               }`}
             >
               {rateSource === 'live' ? (
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
               ) : (
-                <AlertCircle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                <AlertCircle className={`h-3.5 w-3.5 ${rateSource === 'partial' ? 'text-sky-600 dark:text-sky-400' : 'text-amber-600 dark:text-amber-400'}`} />
               )}
-              <span>{rateSource === 'live' ? `Live (${lastUpdated})` : `Snapshot (${lastUpdated})`}</span>
+              <span>
+                {rateSource === 'live'
+                  ? `Live (${lastUpdated})`
+                  : rateSource === 'partial'
+                    ? `Delvist live (${lastUpdated})`
+                    : `Snapshot (${lastUpdated})`}
+              </span>
             </div>
 
             <button

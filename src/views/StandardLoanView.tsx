@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import type { BondLoan } from '../calculator/types';
-import { calculateLoanAmortization } from '../calculator/amortization';
+import { calculateLoanAmortization, getDefaultAfdragsfriYears, principalFromCash } from '../calculator/amortization';
 import { CurrencyInput } from '../components/CurrencyInput';
 import { DependentLoanSelect } from '../components/DependentLoanSelect';
 import { MetricCard } from '../components/MetricCard';
@@ -38,15 +38,26 @@ export const StandardLoanView: React.FC<StandardLoanViewProps> = ({
 
   const calculation = useMemo(() => {
     if (!activeLoan) return null;
+    if (!(activeLoan.kurs > 0)) return null;
 
     const maxLtv = Math.min(80, (loanAmount / propertyValue) * 100);
     const ltvRange: [number, number] = [0, Math.max(1, maxLtv)];
 
     // Convert cash loan amount to nominal bond principal (hovedstol = loanAmount / (kurs / 100))
-    const principal = (loanAmount / activeLoan.kurs) * 100;
+    const principal = principalFromCash(loanAmount, activeLoan.kurs);
     const totalQuarters = (activeLoan.loebetid || 30) * 4;
+    const customAfdragsfriYears = activeLoan.afdragsfri
+      ? getDefaultAfdragsfriYears(activeLoan)
+      : undefined;
 
-    return calculateLoanAmortization(activeLoan, totalQuarters, principal, ltvRange);
+    return calculateLoanAmortization(
+      activeLoan,
+      totalQuarters,
+      principal,
+      ltvRange,
+      undefined,
+      customAfdragsfriYears
+    );
   }, [activeLoan, loanAmount, propertyValue]);
 
   const totalYears = activeLoan?.loebetid || 30;
@@ -149,7 +160,9 @@ export const StandardLoanView: React.FC<StandardLoanViewProps> = ({
             <div className="flex justify-between">
               <span>Afdragsfrihed:</span>
               <span className="font-semibold text-slate-900 dark:text-slate-100">
-                {activeLoan.afdragsfri ? 'Ja (op til 10 år)' : 'Nej (afdrages fra start)'}
+                {activeLoan.afdragsfri
+                  ? `Ja (op til ${getDefaultAfdragsfriYears(activeLoan)} år)`
+                  : 'Nej (afdrages fra start)'}
               </span>
             </div>
           </div>
