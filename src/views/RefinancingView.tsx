@@ -16,8 +16,8 @@ import type { AppMode } from '../utils/appMode';
 import { TillaegslaanComparator } from '../components/TillaegslaanComparator';
 import { ValidationToast } from '../components/ValidationToast';
 import { formatKr, formatKurs, formatPercent } from '../utils/formatters';
-import { maxLoanAt80Ltv, maxPossibleFrivaerdi as maxFrivaerdiExclFees, maxCostAwareFrivaerdi, buildLtvFieldErrors } from '../utils/ltv';
-import { Sparkles, Banknote, HelpCircle, ChevronDown, ChevronUp, Receipt, Lightbulb, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
+import { maxLoanAt80Ltv, maxPossibleFrivaerdi as maxFrivaerdiExclFees, buildLtvFieldErrors } from '../utils/ltv';
+import { Sparkles, Banknote, HelpCircle, ChevronDown, ChevronUp, Receipt, Lightbulb, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface RefinancingViewProps {
   indfrielseLoans: BondLoan[];
@@ -188,18 +188,9 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
   }, [activeNew]);
 
   // Slider / hard max: fee-naive 80% LTV room (excl. stiftelsesomkostninger).
-  // Soft warning uses cost-aware max (fees + kurs inflate nominal exposure).
   const redemptionPrice = activeExisting ? Math.min(100, activeExisting.kurs > 0 ? activeExisting.kurs : 100) : 100;
-  const newOptagelsesKurs = activeNew && activeNew.kurs > 0 ? activeNew.kurs : 100;
   const maxDebtAt80 = maxLoanAt80Ltv(propertyValue);
-  const cashoutLtvInputs = {
-    propertyValue,
-    existingRestgaeld: debt,
-    existingKurs: redemptionPrice,
-    newKurs: newOptagelsesKurs,
-  };
   const maxPossibleFrivaerdi = maxFrivaerdiExclFees(propertyValue, debt, redemptionPrice);
-  const maxCostAwareCashout = maxCostAwareFrivaerdi(cashoutLtvInputs, 'both');
 
   const effectiveFrivaerdi = enableFrivaerdi ? Math.min(frivaerdiUdbetalt, maxPossibleFrivaerdi) : 0;
 
@@ -212,10 +203,6 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
 
   const debtError = debt > maxDebtAt80;
   const frivaerdiError = enableFrivaerdi && frivaerdiUdbetalt > maxPossibleFrivaerdi;
-  const frivaerdiCostAwareWarning =
-    enableFrivaerdi &&
-    !frivaerdiError &&
-    frivaerdiUdbetalt > maxCostAwareCashout;
   const fieldErrors = buildLtvFieldErrors({
     propertyValue,
     debtOrLoan: debt,
@@ -747,23 +734,6 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
                     }
                   }}
                 />
-
-                {frivaerdiCostAwareWarning && (
-                  <div
-                    role="status"
-                    className="flex items-start gap-2 rounded-lg border border-amber-300/90 bg-amber-50 px-3 py-2 text-xs leading-snug text-amber-950 dark:border-amber-800/70 dark:bg-amber-950/40 dark:text-amber-100"
-                  >
-                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
-                    <div>
-                      <p className="font-semibold">
-                        Med stiftelsesomkostninger overstiger den samlede belåning 80 % LTV
-                      </p>
-                      <p className="mt-0.5 text-amber-900/90 dark:text-amber-200/90">
-                        Ca. maks. inkl. gebyrer og kurs: {formatKr(maxCostAwareCashout)}. Slideren er ikke låst — banken kan kræve egenfinansiering af omkostninger.
-                      </p>
-                    </div>
-                  </div>
-                )}
 
                 {/* Segmented strategy selector */}
                 <div className="flex flex-col gap-1.5 pt-1">
