@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateLoanAmortization,
   getDefaultAfdragsfriYears,
+  getOriginalTermYears,
   estimateRemainingAfdragsfriYears,
   principalFromCash,
 } from '../amortization';
@@ -169,5 +170,72 @@ describe('P0/P1 regression: elapsed years uses original term (not hardcoded 30)'
     expect(estimateRemainingAfdragsfriYears(3, 30, 10)).toBe(0);
     expect(estimateRemainingAfdragsfriYears(8, 30, 10)).toBe(0); // elapsed 22
     expect(estimateRemainingAfdragsfriYears(25, 30, 10)).toBe(5);
+  });
+});
+
+describe('original term proxy: getOriginalTermYears (not remaining maturity)', () => {
+  it('prefers loebetid over maxTerminer', () => {
+    const loan: BondLoan = {
+      name: '1% 2041',
+      rente: 1,
+      kurs: 80,
+      loebetid: 20,
+      maxTerminer: 120,
+      afdragsfri: true,
+      bidragsSats: baseBidrag,
+    };
+    expect(getOriginalTermYears(loan)).toBe(20);
+  });
+
+  it('uses maxTerminer/4 when loebetid missing: remainingYears=15, maxIO=10 → elapsed=5 → remaining IO=5 (not 10)', () => {
+    const loan: BondLoan = {
+      name: '1% 2041 med op til 10 års afdragsfrihed',
+      rente: 1,
+      kurs: 80,
+      // no loebetid — old bug fell back to remaining maturity (~15) → elapsed≈0 → IO=10
+      maxTerminer: 80,
+      afdragsfri: true,
+      bidragsSats: baseBidrag,
+    };
+    expect(getOriginalTermYears(loan)).toBe(20);
+    const remainingYears = 15;
+    const maxOriginalAfdragsfri = getDefaultAfdragsfriYears(loan);
+    expect(maxOriginalAfdragsfri).toBe(10);
+    expect(
+      estimateRemainingAfdragsfriYears(remainingYears, getOriginalTermYears(loan), maxOriginalAfdragsfri)
+    ).toBe(5);
+  });
+
+  it('uses name heuristic 20/30 års when neither loebetid nor maxTerminer', () => {
+    expect(
+      getOriginalTermYears({
+        name: 'FlexLån med 20 års løbetid',
+        rente: 2,
+        kurs: 100,
+        afdragsfri: false,
+        bidragsSats: baseBidrag,
+      })
+    ).toBe(20);
+    expect(
+      getOriginalTermYears({
+        name: '30 års afdragsfri produkt',
+        rente: 2,
+        kurs: 100,
+        afdragsfri: true,
+        bidragsSats: baseBidrag,
+      })
+    ).toBe(30);
+  });
+
+  it('documented fallback is 30, not remaining years', () => {
+    expect(
+      getOriginalTermYears({
+        name: '1% 2050',
+        rente: 1,
+        kurs: 80,
+        afdragsfri: false,
+        bidragsSats: baseBidrag,
+      })
+    ).toBe(30);
   });
 });
