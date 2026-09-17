@@ -26,7 +26,7 @@ describe('maxLoanAt80Ltv', () => {
   });
 });
 
-describe('maxPossibleFrivaerdi (legacy, fee-naive)', () => {
+describe('maxPossibleFrivaerdi (fee-naive / slider hard max)', () => {
   it('subtracts redemption cash from 80% LTV room', () => {
     expect(maxPossibleFrivaerdi(3_000_000, 2_000_000, 100)).toBe(400_000);
   });
@@ -40,9 +40,14 @@ describe('maxPossibleFrivaerdi (legacy, fee-naive)', () => {
   it('never goes negative', () => {
     expect(maxPossibleFrivaerdi(1_000_000, 1_000_000, 100)).toBe(0);
   });
+
+  it('example pv=2.475M debt=1.78M redemption=100 → 200_000 (excl. fees)', () => {
+    // floor(2_475_000 * 0.8 - 1_780_000) = 200_000 — hard slider max
+    expect(maxPossibleFrivaerdi(2_475_000, 1_780_000, 100)).toBe(200_000);
+  });
 });
 
-describe('cost-aware friværdi (fees + kurs)', () => {
+describe('cost-aware friværdi (fees + kurs; soft-warning helper)', () => {
   // Example from bug report:
   // pv=2475000, debt=1780000, cash=200000,
   // old 5% 2053 med afdrag (kurs 100), new F-kort med afdrag (kurs 100.3)
@@ -72,7 +77,7 @@ describe('cost-aware friværdi (fees + kurs)', () => {
     bidragsSats: [0.005, 0.0105, 0.0175],
   };
 
-  it('naive max is 200k but cost-aware max is strictly lower', () => {
+  it('naive slider max is 200k; cost-aware soft-warning max is strictly lower', () => {
     const naive = maxPossibleFrivaerdi(2_475_000, 1_780_000, 100);
     expect(naive).toBe(200_000);
 
@@ -172,7 +177,10 @@ describe('buildLtvFieldErrors', () => {
     });
     expect(errors.some((e) => e.id === 'ltv-frivaerdi')).toBe(true);
     expect(errors.find((e) => e.id === 'ltv-frivaerdi')!.message).toMatch(
-      /stiftelsesomkostninger/i,
+      /ekskl\. stiftelsesomkostninger/i,
+    );
+    expect(errors.find((e) => e.id === 'ltv-frivaerdi')!.message).not.toMatch(
+      /inkl\. stiftelsesomkostninger/i,
     );
   });
 

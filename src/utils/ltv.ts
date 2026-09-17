@@ -79,8 +79,9 @@ export function estimateOptionBTotalNominal(
 }
 
 /**
- * Legacy helper: max cash-out ignoring fees/kurs on the new loan
- * (only redemption cash vs 80% room). Prefer maxCostAwareFrivaerdi.
+ * Fee-naive max cash-out: redemption cash vs 80% LTV room only
+ * (excludes stiftelsesomkostninger and new-loan kurs→hovedstol inflation).
+ * Used as the hard slider / blur clamp. See maxCostAwareFrivaerdi for soft warning.
  */
 export function maxPossibleFrivaerdi(
   propertyValue: number,
@@ -184,7 +185,7 @@ export function buildLtvFieldErrors(opts: {
     errors.push({
       id: 'ltv-frivaerdi',
       anchorId: opts.frivaerdiAnchorId,
-      message: `Ønsket udbetaling overstiger maks. til 80 % LTV inkl. stiftelsesomkostninger (${opts.maxFrivaerdi.toLocaleString('da-DK')} kr)`,
+      message: `Ønsket udbetaling overstiger maks. til 80 % LTV (ekskl. stiftelsesomkostninger) (${opts.maxFrivaerdi.toLocaleString('da-DK')} kr)`,
     });
   }
 
