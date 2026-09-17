@@ -168,19 +168,19 @@ export const LoanChart: React.FC<LoanChartProps> = ({
   } : null;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-        <div>
-          <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">{title}</h3>
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
+      <div className="flex flex-col gap-2.5 mb-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm sm:text-base">{title}</h3>
           {subtitle && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>}
         </div>
 
-        {/* Legend & Zoom Button */}
-        <div className="flex flex-wrap items-center gap-4 text-xs font-medium">
+        {/* Legend & Zoom Button — wrap/stack on narrow widths */}
+        <div className="flex flex-col gap-2 text-xs font-medium sm:items-end">
           <button
             type="button"
             onClick={() => setIsZoomed(!isZoomed)}
-            className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
+            className={`self-start sm:self-end px-2 py-1 text-xs font-semibold rounded-md border transition-all cursor-pointer ${
               isZoomed
                 ? 'border-blue-600 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950/40 dark:text-blue-300'
                 : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
@@ -189,14 +189,14 @@ export const LoanChart: React.FC<LoanChartProps> = ({
             {isZoomed ? '🔍 Zoomet (Nulstil)' : '🔍 Zoom Y-akse'}
           </button>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
             {series.map((s) => (
-              <div key={s.id} className="flex items-center gap-1.5">
+              <div key={s.id} className="flex items-center gap-1.5 max-w-full">
                 <span
-                  className="h-3 w-3 rounded-full"
+                  className="h-2.5 w-2.5 rounded-full shrink-0"
                   style={{ backgroundColor: s.color }}
                 />
-                <span className="text-slate-700 dark:text-slate-300">{s.name}</span>
+                <span className="text-slate-700 dark:text-slate-300 truncate">{s.name}</span>
               </div>
             ))}
           </div>

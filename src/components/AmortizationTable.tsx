@@ -52,7 +52,7 @@ export const AmortizationTable: React.FC<AmortizationTableProps> = ({
     : (viewMode === 'yearly' ? yearlyData : calculation.schedule).slice(0, 10);
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden dark:border-slate-800 dark:bg-slate-900 transition-colors">
+    <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden dark:border-slate-800 dark:bg-slate-900 transition-colors">
       {/* Clickable unfoldable header */}
       <button
         type="button"

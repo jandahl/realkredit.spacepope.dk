@@ -29,9 +29,9 @@ export const TillaegslaanComparator: React.FC<TillaegslaanComparatorProps> = ({
   const isFullOmlaegningBetter = recommendedStrategy === 'full_omlaegning';
 
   return (
-    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden transition-colors my-6">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden transition-colors my-4">
       {/* Header */}
-      <div className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-800/40 p-4 sm:p-6">
+      <div className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-800/40 p-4 sm:p-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600/10 text-blue-600 dark:text-blue-400">
@@ -81,7 +81,7 @@ export const TillaegslaanComparator: React.FC<TillaegslaanComparatorProps> = ({
       </div>
 
       {/* Comparison Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100 dark:divide-slate-800 p-4 sm:p-6 gap-6 md:gap-0">
+      <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100 dark:divide-slate-800 p-4 sm:p-5 gap-4 md:gap-0">
         
         {/* Option A: Full Remortgage */}
         <div className={`md:pr-6 flex flex-col justify-between rounded-xl p-4 transition-all ${
@@ -90,7 +90,7 @@ export const TillaegslaanComparator: React.FC<TillaegslaanComparatorProps> = ({
             : 'bg-slate-50/50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800'
         }`}>
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-700/60">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-700/60">
               <div className="flex items-center gap-2">
                 <ArrowRightLeft className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">
@@ -157,7 +157,7 @@ export const TillaegslaanComparator: React.FC<TillaegslaanComparatorProps> = ({
             : 'bg-slate-50/50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800'
         }`}>
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-700/60">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-700/60">
               <div className="flex items-center gap-2">
                 <Layers className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">

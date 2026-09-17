@@ -393,7 +393,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
   }, [tillaegslaanComparison, comparison]);
 
   if (!activeExisting || !activeNew || !comparison) {
-    return <div className="p-8 text-center text-slate-500 dark:text-slate-400">Indlæser lånedata...</div>;
+    return <div className="p-6 text-center text-slate-500 dark:text-slate-400">Indlæser lånedata...</div>;
   }
 
   // Active Display metrics depending on Option A vs Option B selection
@@ -437,40 +437,39 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
   const isPaymentLower = displayDeltaMonthlyYdelse < 0;
 
   return (
-    <div className="flex flex-col gap-8 pb-12">
+    <div className="flex flex-col gap-5 pb-8">
       {/* Intro Banner */}
-      <div className="rounded-2xl bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 p-6 sm:p-8 text-white shadow-md">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur-md mb-3">
-              <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+      <div className="rounded-xl bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 p-3.5 sm:p-4 text-white shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="max-w-2xl min-w-0">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-medium backdrop-blur-md mb-1.5">
+              <Sparkles className="h-3 w-3 text-amber-300" />
               <span>Konverteringsberegner med live kurser</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+            <h2 className="text-lg sm:text-xl font-bold tracking-tight">
               Beregn omlægning af dit realkreditlån
             </h2>
-            <p className="mt-2 text-sm sm:text-base text-blue-100/90 leading-relaxed">
-              Se hvad du kan skære af din restgæld ved en opkonvertering, hvad du sparer ved en nedkonvertering,
-              eller beregn et tillægslån med friværdi udbetalt.
+            <p className="mt-1 text-xs sm:text-sm text-blue-100/85 leading-snug">
+              Op-/nedkonvertering, tillægslån og friværdi — med live obligationskurser.
             </p>
           </div>
 
           <button
             type="button"
             onClick={() => setShowDumbIdeas(true)}
-            className="self-start sm:self-center inline-flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-900 shadow-md hover:bg-amber-300 transition-all cursor-pointer shrink-0"
+            className="self-start sm:self-center inline-flex items-center gap-1.5 rounded-lg border border-white/35 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/95 backdrop-blur-sm hover:bg-white/20 transition-all cursor-pointer shrink-0"
           >
-            <Lightbulb className="h-4 w-4 text-slate-900" />
-            <span>DUMB IDEAS (Reality Check)</span>
+            <Lightbulb className="h-3.5 w-3.5 text-amber-200" />
+            <span>DUMB IDEAS</span>
           </button>
         </div>
       </div>
 
       {/* Input Section */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Left Card: Property & Debt Inputs (no slider on currency fields) */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900 flex flex-col gap-5 transition-colors">
-          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 flex flex-col gap-3 transition-colors">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-2">
             1. Din bolig & restgæld
           </h3>
 
@@ -629,8 +628,8 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
         </div>
 
         {/* Right Card: Dependent Loan Selection */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900 flex flex-col gap-5 transition-colors">
-          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 flex flex-col gap-3 transition-colors">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-2">
             2. Vælg lån til sammenligning
           </h3>
 
@@ -708,7 +707,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       </div>
 
       {/* Key Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard
           title="Ny restgæld (Hovedstol)"
           value={formatKr(displayNyHovedstol)}
@@ -756,8 +755,8 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       </div>
 
       {/* Kursgevinst & Kurstab Breakdown */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
-        <div className="flex items-center justify-between mb-3">
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <HelpCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
@@ -771,9 +770,9 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2 items-stretch">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 items-stretch">
           {/* 1. Tillægslån / Udbetaling */}
-          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-5 dark:border-slate-800 dark:bg-slate-800/40 flex flex-col justify-between">
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-800/40 flex flex-col justify-between">
             <div>
               <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Udbetalt til din konto
@@ -811,7 +810,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
 
             return (
               <div
-                className={`rounded-2xl border-2 p-6 shadow-md transition-all flex flex-col justify-between relative overflow-hidden ${
+                className={`rounded-2xl border-2 p-5 shadow-md transition-all flex flex-col justify-between relative overflow-hidden ${
                   isNetPositive
                     ? 'border-emerald-500/80 bg-emerald-50/70 dark:border-emerald-500/60 dark:bg-emerald-950/30'
                     : 'border-amber-500/80 bg-amber-50/70 dark:border-amber-500/60 dark:bg-amber-950/30'

@@ -180,7 +180,7 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
     hoveredQuarter !== null ? dataPoints[hoveredQuarter] || null : null;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
         <div>
           <div className="flex items-center gap-2">

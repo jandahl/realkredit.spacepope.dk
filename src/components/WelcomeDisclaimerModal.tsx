@@ -46,12 +46,12 @@ export const WelcomeDisclaimerModal: React.FC = () => {
         role="dialog"
         aria-modal="true"
         aria-labelledby="welcome-disclaimer-title"
-        className="relative w-full max-w-lg rounded-2xl border border-amber-300 dark:border-amber-800 bg-white dark:bg-slate-900 p-6 shadow-2xl transition-all"
+        className="relative w-full max-w-lg rounded-xl border border-amber-300 dark:border-amber-800 bg-white dark:bg-slate-900 p-5 shadow-2xl transition-all"
       >
         {/* Header Icon */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 dark:bg-amber-950/80 dark:text-amber-400 shrink-0">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-950/80 dark:text-amber-400 shrink-0">
               <AlertTriangle className="h-6 w-6" />
             </div>
             <div>
@@ -74,7 +74,7 @@ export const WelcomeDisclaimerModal: React.FC = () => {
         </div>
 
         {/* Disclaimer Body */}
-        <div className="my-5 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/40 p-4 text-sm font-medium text-amber-950 dark:text-amber-200 leading-relaxed">
+        <div className="my-4 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/40 p-4 text-sm font-medium text-amber-950 dark:text-amber-200 leading-relaxed">
           Tag dig sammen og undersøg nærmere end bare en hjemmeside! Det er de næste årtier af dit liv, der er tale om – og hvad fanden ved jeg overhovedet om det her?
         </div>
 
