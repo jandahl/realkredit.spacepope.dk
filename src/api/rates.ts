@@ -1,5 +1,5 @@
 import type { BondLoan } from '../calculator/types';
-import { FALLBACK_OPTAGELSE_LAAN, FALLBACK_INDFRIELSE_LAAN } from './fallbackRates';
+import { FALLBACK_OPTAGELSE_LAAN, FALLBACK_INDFRIELSE_LAAN, FALLBACK_RATES_AS_OF_LABEL } from './fallbackRates';
 
 export const DIRECT_API_BASE_URL = 'https://72ylpd13k2.execute-api.eu-north-1.amazonaws.com/v1/api';
 
@@ -60,14 +60,14 @@ export async function fetchKurser(
     return {
       loans: fallback,
       source: 'fallback',
-      timestamp: new Date().toLocaleTimeString('da-DK'),
+      timestamp: FALLBACK_RATES_AS_OF_LABEL,
     };
   } catch (error) {
     console.warn(`Failed to fetch live ${type} rates, using cached snapshot:`, error);
     return {
       loans: fallback,
       source: 'fallback',
-      timestamp: new Date().toLocaleTimeString('da-DK'),
+      timestamp: FALLBACK_RATES_AS_OF_LABEL,
     };
   } finally {
     clearTimeout(timeoutId);

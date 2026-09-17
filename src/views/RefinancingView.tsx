@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { BondLoan, LoanAmortizationResult, QuarterlyScheduleRow } from '../calculator/types';
 import { calculateRefinancing } from '../calculator/refinancing';
-import { getDefaultAfdragsfriYears } from '../calculator/amortization';
+import { getDefaultAfdragsfriYears, estimateRemainingAfdragsfriYears } from '../calculator/amortization';
 import { calculateTillaegslaanComparison } from '../calculator/tillaegslaan';
 import { CurrencyInput } from '../components/CurrencyInput';
 import { DependentLoanSelect } from '../components/DependentLoanSelect';
@@ -144,6 +144,16 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
   // Friværdi strategy selector: Option A (Fuld omlægning) vs Option B (Tillægslån)
   const [frivaerdiStrategy, setFrivaerdiStrategy] = useState<'omlaegning' | 'tillaeg'>('omlaegning');
 
+  // Original term for the existing bond (loebetid, else maturity-based max, else 30)
+  const originalExistingTermYears = useMemo(() => {
+    if (!activeExisting) return 30;
+    if (activeExisting.loebetid && activeExisting.loebetid > 0) {
+      return Math.max(1, Math.min(30, activeExisting.loebetid));
+    }
+    // When only maturity is known, maxExistingYears is the best proxy for original term left from issuance horizon
+    return maxExistingYears;
+  }, [activeExisting, maxExistingYears]);
+
   // Sync existingAfdragsfriYears when activeExisting changes or remainingYears changes
   useEffect(() => {
     if (activeExisting) {
@@ -151,12 +161,12 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
         setExistingAfdragsfriYears(0);
       } else {
         const maxOriginalAfdragsfri = getDefaultAfdragsfriYears(activeExisting);
-        const elapsedYears = Math.max(0, 30 - remainingYears);
-        const remainingAfdragsfri = Math.max(0, Math.min(remainingYears, maxOriginalAfdragsfri - elapsedYears));
-        setExistingAfdragsfriYears(remainingAfdragsfri);
+        setExistingAfdragsfriYears(
+          estimateRemainingAfdragsfriYears(remainingYears, originalExistingTermYears, maxOriginalAfdragsfri)
+        );
       }
     }
-  }, [activeExisting, remainingYears]);
+  }, [activeExisting, remainingYears, originalExistingTermYears]);
 
   // Sync newAfdragsfriYears when activeNew changes
   useEffect(() => {

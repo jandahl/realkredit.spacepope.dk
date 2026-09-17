@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { RefinancingComparison, TillaegslaanComparison } from '../calculator/types';
 import { formatKr, formatKurs } from '../utils/formatters';
 import { 
@@ -29,6 +29,21 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
   breakevenYears,
 }) => {
   const [activeStrategy, setActiveStrategy] = useState<'full' | 'tillaeg'>('full');
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    closeBtnRef.current?.focus();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -113,7 +128,13 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
       />
 
       {/* Modal Container */}
-      <div className="relative w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-5 sm:p-7 z-10 overflow-hidden text-slate-800 dark:text-slate-100 transition-colors">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="dumb-ideas-title"
+        className="relative w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-5 sm:p-7 z-10 overflow-hidden text-slate-800 dark:text-slate-100 transition-colors"
+      >
         
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4 shrink-0">
@@ -123,7 +144,7 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+                <h3 id="dumb-ideas-title" className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
                   Dumb Ideas & Tommelfingerregler
                 </h3>
                 <span className="rounded-md bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:text-amber-300">
@@ -170,7 +191,10 @@ export const DumbIdeasModal: React.FC<DumbIdeasModalProps> = ({
             )}
 
             <button
+              ref={closeBtnRef}
+              type="button"
               onClick={onClose}
+              aria-label="Luk"
               className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
             >
               <X className="h-5 w-5" />

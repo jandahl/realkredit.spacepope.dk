@@ -1,5 +1,11 @@
 import type { BondLoan } from '../calculator/types';
 
+/** ISO date when the embedded snapshot rates were last captured / refreshed. */
+export const FALLBACK_RATES_AS_OF = '2026-09-16';
+
+/** Danish-locale label for Navbar when rateSource is fallback. */
+export const FALLBACK_RATES_AS_OF_LABEL = '16.09.2026';
+
 export const FALLBACK_OPTAGELSE_LAAN: BondLoan[] = [
   {
     "name": "4% 2059 med afdrag",

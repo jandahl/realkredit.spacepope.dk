@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 
 const STORAGE_KEY = 'hide_welcome_disclaimer';
@@ -6,6 +6,8 @@ const STORAGE_KEY = 'hide_welcome_disclaimer';
 export const WelcomeDisclaimerModal: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const primaryBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const isHidden = localStorage.getItem(STORAGE_KEY) === 'true';
@@ -13,6 +15,20 @@ export const WelcomeDisclaimerModal: React.FC = () => {
       setIsOpen(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    primaryBtnRef.current?.focus();
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleClose();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, dontShowAgain]);
 
   const handleClose = () => {
     if (dontShowAgain) {
@@ -25,7 +41,13 @@ export const WelcomeDisclaimerModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4">
-      <div className="relative w-full max-w-lg rounded-2xl border border-amber-300 dark:border-amber-800 bg-white dark:bg-slate-900 p-6 shadow-2xl transition-all">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="welcome-disclaimer-title"
+        className="relative w-full max-w-lg rounded-2xl border border-amber-300 dark:border-amber-800 bg-white dark:bg-slate-900 p-6 shadow-2xl transition-all"
+      >
         {/* Header Icon */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -33,7 +55,7 @@ export const WelcomeDisclaimerModal: React.FC = () => {
               <AlertTriangle className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+              <h2 id="welcome-disclaimer-title" className="text-lg font-bold text-slate-900 dark:text-slate-100">
                 Vigtig Ansvarsfraskrivelse
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -44,6 +66,7 @@ export const WelcomeDisclaimerModal: React.FC = () => {
           <button
             type="button"
             onClick={handleClose}
+            aria-label="Luk"
             className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
           >
             <X className="h-5 w-5" />
@@ -68,6 +91,7 @@ export const WelcomeDisclaimerModal: React.FC = () => {
           </label>
 
           <button
+            ref={primaryBtnRef}
             type="button"
             onClick={handleClose}
             className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-colors shadow-sm cursor-pointer"

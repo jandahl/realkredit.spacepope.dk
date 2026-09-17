@@ -154,7 +154,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   ? `Live (${lastUpdated})`
                   : rateSource === 'partial'
                     ? `Delvist live (${lastUpdated})`
-                    : `Snapshot (${lastUpdated})`}
+                    : `Snapshot fra ${lastUpdated}`}
               </span>
             </div>
 
