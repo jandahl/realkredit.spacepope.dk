@@ -6,6 +6,7 @@ import {
   estimateOptionANyHovedstol,
   estimateOptionBTotalNominal,
   buildLtvFieldErrors,
+  mapCashoutAcrossStrategyMax,
 } from '../../utils/ltv';
 import { calculateTillaegslaanComparison } from '../tillaegslaan';
 import { calculateRefinancing } from '../refinancing';
@@ -233,5 +234,39 @@ describe('buildLtvFieldErrors', () => {
         debtAnchorId: 'field-debt',
       }),
     ).toEqual([]);
+  });
+});
+
+describe('mapCashoutAcrossStrategyMax', () => {
+  const maxA = 65_579;
+  const maxB = 174_538;
+
+  it('maps 0 → 0', () => {
+    expect(mapCashoutAcrossStrategyMax(0, maxA, maxB)).toBe(0);
+    expect(mapCashoutAcrossStrategyMax(0, maxB, maxA)).toBe(0);
+  });
+
+  it('maps max → max (A ↔ B)', () => {
+    expect(mapCashoutAcrossStrategyMax(maxA, maxA, maxB)).toBe(maxB);
+    expect(mapCashoutAcrossStrategyMax(maxB, maxB, maxA)).toBe(maxA);
+  });
+
+  it('maps mid ≈ mid by percent of max', () => {
+    const halfA = Math.round(maxA / 2);
+    const expected = Math.round((halfA / maxA) * maxB);
+    expect(mapCashoutAcrossStrategyMax(halfA, maxA, maxB)).toBe(expected);
+    // Exact 50% of A max → 50% of B max
+    expect(mapCashoutAcrossStrategyMax(maxA / 2, maxA, maxB)).toBe(Math.round(0.5 * maxB));
+    expect(mapCashoutAcrossStrategyMax(maxB / 2, maxB, maxA)).toBe(Math.round(0.5 * maxA));
+  });
+
+  it('returns 0 when prevMax is 0', () => {
+    expect(mapCashoutAcrossStrategyMax(50_000, 0, maxB)).toBe(0);
+  });
+
+  it('clamps ratio to [0, 1] and result to nextMax', () => {
+    expect(mapCashoutAcrossStrategyMax(maxA + 10_000, maxA, maxB)).toBe(maxB);
+    expect(mapCashoutAcrossStrategyMax(-1, maxA, maxB)).toBe(0);
+    expect(mapCashoutAcrossStrategyMax(10_000, maxA, 0)).toBe(0);
   });
 });

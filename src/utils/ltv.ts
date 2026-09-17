@@ -193,3 +193,21 @@ export function buildLtvFieldErrors(opts: {
 
   return errors;
 }
+
+/**
+ * Remap cashout when switching friværdi strategy (Option A ↔ B) by preserving
+ * the fraction of the previous strategy's max.
+ * at max → new max; at 0 → 0; mid → mid; prevMax≤0 → 0.
+ */
+export function mapCashoutAcrossStrategyMax(
+  cashout: number,
+  prevMax: number,
+  nextMax: number,
+): number {
+  if (!(nextMax > 0) || !Number.isFinite(nextMax)) return 0;
+  if (!(prevMax > 0) || !Number.isFinite(prevMax)) return 0;
+  const c = Number.isFinite(cashout) ? Math.max(0, cashout) : 0;
+  const ratio = Math.min(1, Math.max(0, c / prevMax));
+  const mapped = Math.round(ratio * nextMax);
+  return Math.min(nextMax, Math.max(0, mapped));
+}

@@ -17,7 +17,7 @@ import { TillaegslaanComparator } from '../components/TillaegslaanComparator';
 import { ValidationToast } from '../components/ValidationToast';
 import { formatKr, formatKurs, formatPercent } from '../utils/formatters';
 import { computeBreakevenSeries } from '../utils/breakeven';
-import { maxLoanAt80Ltv, maxCostAwareFrivaerdi, estimateOptionANyHovedstol, estimateOptionBTotalNominal, buildLtvFieldErrors } from '../utils/ltv';
+import { maxLoanAt80Ltv, maxCostAwareFrivaerdi, estimateOptionANyHovedstol, estimateOptionBTotalNominal, buildLtvFieldErrors, mapCashoutAcrossStrategyMax } from '../utils/ltv';
 import { Sparkles, Banknote, HelpCircle, ChevronDown, ChevronUp, Receipt, Lightbulb, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface RefinancingViewProps {
@@ -282,13 +282,11 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
   };
 
   const handleFrivaerdiStrategyChange = (strategy: 'omlaegning' | 'tillaeg') => {
+    const prevMax = frivaerdiStrategy === 'tillaeg' ? maxFrivaerdiTillaeg : maxFrivaerdiOmlaegning;
+    const nextMax = strategy === 'tillaeg' ? maxFrivaerdiTillaeg : maxFrivaerdiOmlaegning;
     setFrivaerdiStrategy(strategy);
-    if (enableFrivaerdi) {
-      const maxFri = computeMaxFri(propertyValue, debt, strategy);
-      if (frivaerdiUdbetalt > maxFri) {
-        setFrivaerdiUdbetalt(maxFri);
-      }
-    }
+    if (!enableFrivaerdi) return;
+    setFrivaerdiUdbetalt(mapCashoutAcrossStrategyMax(frivaerdiUdbetalt, prevMax, nextMax));
   };
 
   const comparison = useMemo(() => {
