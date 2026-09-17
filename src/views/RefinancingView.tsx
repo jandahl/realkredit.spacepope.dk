@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { BondLoan, LoanAmortizationResult, QuarterlyScheduleRow } from '../calculator/types';
 import { calculateRefinancing } from '../calculator/refinancing';
+import { getDefaultAfdragsfriYears } from '../calculator/amortization';
 import { calculateTillaegslaanComparison } from '../calculator/tillaegslaan';
 import { CurrencyInput } from '../components/CurrencyInput';
 import { DependentLoanSelect } from '../components/DependentLoanSelect';
@@ -82,7 +83,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
   // Dynamically calculate max remaining years based on existing loan udløbsår
   const maxExistingYears = useMemo(() => {
     if (!activeExisting) return 30;
-    const currentYear = 2026;
+    const currentYear = new Date().getFullYear();
     let maturityYear: number | undefined = activeExisting.udloebsAar;
 
     if (!maturityYear) {
@@ -109,7 +110,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
   // Maximum years possible for the selected new bond based on actual maturity year (2049 = 23 years in 2026)
   const maxNewLoanYears = useMemo(() => {
     if (!activeNew) return 30;
-    const currentYear = 2026;
+    const currentYear = new Date().getFullYear();
     let maturityYear: number | undefined = activeNew.udloebsAar;
     if (!maturityYear) {
       const match = activeNew.name.match(/\b(20\d\d)\b/);
@@ -130,10 +131,16 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
     setNewLoanYears((prev) => Math.min(prev, maxNewLoanYears));
   }, [activeNew, maxNewLoanYears]);
 
-  // Remaining interest-free years for existing loan (0 to Math.min(10, remainingYears))
+  // Remaining interest-free years for existing loan (0 to max for 10 vs 30 product)
   const [existingAfdragsfriYears, setExistingAfdragsfriYears] = useState<number>(10);
   // Remaining interest-free years for new loan (0 to max allowed by new bond)
   const [newAfdragsfriYears, setNewAfdragsfriYears] = useState<number>(0);
+
+  // Max remaining IO years for existing loan (10 vs 30 product rule)
+  const maxExistingAfdragsfriYears = useMemo(() => {
+    if (!activeExisting?.afdragsfri) return 0;
+    return Math.min(remainingYears, getDefaultAfdragsfriYears(activeExisting));
+  }, [activeExisting, remainingYears]);
   // Friværdi strategy selector: Option A (Fuld omlægning) vs Option B (Tillægslån)
   const [frivaerdiStrategy, setFrivaerdiStrategy] = useState<'omlaegning' | 'tillaeg'>('omlaegning');
 
@@ -143,7 +150,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       if (!activeExisting.afdragsfri) {
         setExistingAfdragsfriYears(0);
       } else {
-        const maxOriginalAfdragsfri = activeExisting.name.includes('30 års afdragsfri') ? 30 : 10;
+        const maxOriginalAfdragsfri = getDefaultAfdragsfriYears(activeExisting);
         const elapsedYears = Math.max(0, 30 - remainingYears);
         const remainingAfdragsfri = Math.max(0, Math.min(remainingYears, maxOriginalAfdragsfri - elapsedYears));
         setExistingAfdragsfriYears(remainingAfdragsfri);
@@ -157,7 +164,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       if (!activeNew.afdragsfri) {
         setNewAfdragsfriYears(0);
       } else {
-        const defaultAfdragsfri = activeNew.name.includes('30 års afdragsfri') ? 30 : 10;
+        const defaultAfdragsfri = getDefaultAfdragsfriYears(activeNew);
         setNewAfdragsfriYears((prev) => (prev === 0 ? defaultAfdragsfri : Math.min(prev, defaultAfdragsfri)));
       }
     }
@@ -165,7 +172,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
 
   // Maximum equity payout at 80% LTV
   const max80LtvCash = propertyValue * 0.80;
-  const redemptionPrice = activeExisting ? Math.min(100, activeExisting.kurs) : 100;
+  const redemptionPrice = activeExisting ? Math.min(100, activeExisting.kurs > 0 ? activeExisting.kurs : 100) : 100;
   const existingRedemptionCash = (debt * redemptionPrice) / 100;
   const maxPossibleFrivaerdi = Math.max(0, Math.floor(max80LtvCash - existingRedemptionCash));
 
@@ -181,9 +188,10 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       remainingYears,
       newLoanYears,
       effectiveFrivaerdi,
-      existingAfdragsfriYears
+      existingAfdragsfriYears,
+      newAfdragsfriYears
     );
-  }, [activeExisting, activeNew, debt, propertyValue, remainingYears, newLoanYears, effectiveFrivaerdi, existingAfdragsfriYears]);
+  }, [activeExisting, activeNew, debt, propertyValue, remainingYears, newLoanYears, effectiveFrivaerdi, existingAfdragsfriYears, newAfdragsfriYears]);
 
   const tillaegslaanComparison = useMemo(() => {
     if (!enableFrivaerdi || effectiveFrivaerdi <= 0 || !activeExisting || !activeNew) return null;
@@ -195,9 +203,10 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       remainingYears,
       newLoanYears,
       effectiveFrivaerdi,
-      existingAfdragsfriYears
+      existingAfdragsfriYears,
+      newAfdragsfriYears
     );
-  }, [enableFrivaerdi, effectiveFrivaerdi, activeExisting, activeNew, debt, propertyValue, remainingYears, newLoanYears, existingAfdragsfriYears]);
+  }, [enableFrivaerdi, effectiveFrivaerdi, activeExisting, activeNew, debt, propertyValue, remainingYears, newLoanYears, existingAfdragsfriYears, newAfdragsfriYears]);
 
   // Generate chart data: Restgæld pr. år up to the longest loan duration (maxYears)
   const chartSeries = useMemo<ChartSeries[]>(() => {
@@ -515,7 +524,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
               <input
                 type="range"
                 min={0}
-                max={Math.min(10, remainingYears)}
+                max={maxExistingAfdragsfriYears}
                 step={1}
                 value={existingAfdragsfriYears}
                 onChange={(e) => setExistingAfdragsfriYears(parseInt(e.target.value, 10))}
@@ -523,7 +532,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
               />
               <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400">
                 <span>0 år (afdrager fra i dag)</span>
-                <span>{Math.min(10, remainingYears)} år tilbage</span>
+                <span>{maxExistingAfdragsfriYears} år tilbage</span>
               </div>
             </div>
           )}
@@ -677,7 +686,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
               <input
                 type="range"
                 min={0}
-                max={activeNew.name.includes('30 års afdragsfri') ? 30 : Math.min(10, newLoanYears)}
+                max={Math.min(getDefaultAfdragsfriYears(activeNew), newLoanYears)}
                 step={1}
                 value={newAfdragsfriYears}
                 onChange={(e) => setNewAfdragsfriYears(parseInt(e.target.value, 10))}
@@ -685,7 +694,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
               />
               <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400">
                 <span>0 år (afdrager fra start)</span>
-                <span>{activeNew.name.includes('30 års afdragsfri') ? '30 år' : `${Math.min(10, newLoanYears)} år`}</span>
+                <span>{Math.min(getDefaultAfdragsfriYears(activeNew), newLoanYears)} år</span>
               </div>
             </div>
           )}

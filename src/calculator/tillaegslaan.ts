@@ -1,5 +1,5 @@
 import type { BondLoan, TillaegslaanComparison } from './types';
-import { calculateLoanAmortization, STANDARD_TAX_DEDUCTION_RATE } from './amortization';
+import { calculateLoanAmortization, STANDARD_TAX_DEDUCTION_RATE, principalFromCash } from './amortization';
 
 /**
  * Calculates a comparison between:
@@ -44,12 +44,12 @@ export function calculateTillaegslaanComparison(
   const gebyrerInstitutOgBankFull = 8_500;
   
   let samletKontantbehovA = indfrielsesBeloeb + Math.max(0, desiredCashout) + tinglysningFast + gebyrerInstitutOgBankFull;
-  let nyHovedstolA = (samletKontantbehovA / newLoan.kurs) * 100;
+  let nyHovedstolA = principalFromCash(samletKontantbehovA, newLoan.kurs);
   let tinglysningVariabelA = Math.ceil((Math.max(0, nyHovedstolA - existingRestgaeld) * 0.0145) / 100) * 100;
   let kurtageA = Math.round(samletKontantbehovA * 0.0015);
   let totalOmkostningerA = tinglysningFast + tinglysningVariabelA + kurtageA + gebyrerInstitutOgBankFull;
   samletKontantbehovA = indfrielsesBeloeb + Math.max(0, desiredCashout) + totalOmkostningerA;
-  nyHovedstolA = (samletKontantbehovA / newLoan.kurs) * 100;
+  nyHovedstolA = principalFromCash(samletKontantbehovA, newLoan.kurs);
 
   const newLtvPercentA = propertyValue > 0 ? (nyHovedstolA / propertyValue) * 100 : 80;
   const newLtvRangeA: [number, number] = [0, Math.min(80, newLtvPercentA)];
@@ -68,12 +68,12 @@ export function calculateTillaegslaanComparison(
   const gebyrerBankTillaeg = 8_500; // Bank/inst. creation fee
   
   let kontantbehovB = Math.max(0, desiredCashout) + tinglysningFast + gebyrerBankTillaeg;
-  let tillaegHovedstol = (kontantbehovB / newLoan.kurs) * 100;
+  let tillaegHovedstol = principalFromCash(kontantbehovB, newLoan.kurs);
   let tinglysningVariabelB = Math.ceil((tillaegHovedstol * 0.0145) / 100) * 100;
   let kurtageB = Math.round(kontantbehovB * 0.0015);
   let totalOmkostningerB = tinglysningFast + tinglysningVariabelB + kurtageB + gebyrerBankTillaeg;
   kontantbehovB = Math.max(0, desiredCashout) + totalOmkostningerB;
-  tillaegHovedstol = (kontantbehovB / newLoan.kurs) * 100;
+  tillaegHovedstol = principalFromCash(kontantbehovB, newLoan.kurs);
 
   // LTV bracket for Tillægslån: sits above existing LTV bracket (e.g. [40%, 60%] or [60%, 80%])
   const tillaegLtvStart = Math.min(80, existingLtvPercent);

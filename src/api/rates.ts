@@ -12,20 +12,35 @@ export interface RatesResponse {
   timestamp: string;
 }
 
+function isValidBondLoan(loan: unknown): loan is BondLoan {
+  if (!loan || typeof loan !== 'object') return false;
+  const l = loan as Record<string, unknown>;
+  if (typeof l.name !== 'string' || l.name.trim().length === 0) return false;
+  if (typeof l.rente !== 'number' || !Number.isFinite(l.rente)) return false;
+  if (typeof l.kurs !== 'number' || !(l.kurs > 0)) return false;
+  if (!Array.isArray(l.bidragsSats) || l.bidragsSats.length !== 3) return false;
+  if (!l.bidragsSats.every((x) => typeof x === 'number' && Number.isFinite(x))) return false;
+  return true;
+}
+
+/** Normalise live API rows: require name, rente, kurs>0, bidragsSats length 3; drop bad rows. */
+export function normaliseLiveLoans(raw: unknown[]): BondLoan[] {
+  return raw.filter(isValidBondLoan);
+}
+
 export async function fetchKurser(
   type: 'optagelse' | 'indfrielse',
   signal?: AbortSignal
 ): Promise<RatesResponse> {
   const fallback = type === 'optagelse' ? FALLBACK_OPTAGELSE_LAAN : FALLBACK_INDFRIELSE_LAAN;
 
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 6000);
 
+  try {
     const response = await fetch(`${API_BASE_URL}/kurser/${type}`, {
       signal: signal || controller.signal,
     });
-    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status} when fetching kurser`);
@@ -33,11 +48,14 @@ export async function fetchKurser(
 
     const data = await response.json();
     if (data && Array.isArray(data.laan) && data.laan.length > 0) {
-      return {
-        loans: data.laan,
-        source: 'live',
-        timestamp: new Date().toLocaleTimeString('da-DK'),
-      };
+      const loans = normaliseLiveLoans(data.laan);
+      if (loans.length > 0) {
+        return {
+          loans,
+          source: 'live',
+          timestamp: new Date().toLocaleTimeString('da-DK'),
+        };
+      }
     }
     return {
       loans: fallback,
@@ -51,5 +69,7 @@ export async function fetchKurser(
       source: 'fallback',
       timestamp: new Date().toLocaleTimeString('da-DK'),
     };
+  } finally {
+    clearTimeout(timeoutId);
   }
 }

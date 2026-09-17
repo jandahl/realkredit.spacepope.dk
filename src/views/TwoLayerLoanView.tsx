@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import type { BondLoan } from '../calculator/types';
 import { calculateTwoLayerLoan } from '../calculator/twoLayer';
+import { getDefaultAfdragsfriYears } from '../calculator/amortization';
 import { CurrencyInput } from '../components/CurrencyInput';
 import { DependentLoanSelect } from '../components/DependentLoanSelect';
 import { MetricCard } from '../components/MetricCard';
@@ -70,23 +71,32 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
     return defaultLayer2;
   }, [optagelseLoans, selectedLayer2LoanName, defaultLayer2]);
 
+  const totalYears = useMemo(() => {
+    const y1 = activeLayer1?.loebetid ?? 30;
+    const y2 = activeLayer2?.loebetid ?? 30;
+    return Math.max(y1, y2);
+  }, [activeLayer1, activeLayer2]);
+
   const result = useMemo(() => {
     if (!activeLayer1 || !activeLayer2) return null;
+    if (!(activeLayer1.kurs > 0) || !(activeLayer2.kurs > 0)) return null;
     return calculateTwoLayerLoan(
       propertyValue,
       totalLoanAmount,
       splitPercent,
       activeLayer1,
       activeLayer2,
-      120
+      totalYears * 4,
+      undefined,
+      activeLayer1.afdragsfri ? getDefaultAfdragsfriYears(activeLayer1) : undefined,
+      activeLayer2.afdragsfri ? getDefaultAfdragsfriYears(activeLayer2) : undefined
     );
-  }, [propertyValue, totalLoanAmount, splitPercent, activeLayer1, activeLayer2]);
+  }, [propertyValue, totalLoanAmount, splitPercent, activeLayer1, activeLayer2, totalYears]);
 
   // Generate chart data: Restgæld for Lag 1, Lag 2 and Samlet
   const chartSeries = useMemo<ChartSeries[]>(() => {
     if (!result) return [];
 
-    const totalYears = 30;
     const combinedData: number[] = [result.layer1Result.hovedstol + result.layer2Result.hovedstol];
     const layer1Data: number[] = [result.layer1Result.hovedstol];
     const layer2Data: number[] = [result.layer2Result.hovedstol];
@@ -120,7 +130,7 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
         data: layer1Data,
       },
     ];
-  }, [result, activeLayer1, activeLayer2]);
+  }, [result, activeLayer1, activeLayer2, totalYears]);
 
   if (!activeLayer1 || !activeLayer2 || !result) {
     return <div className="p-8 text-center text-slate-500 dark:text-slate-400">Indlæser lån...</div>;
@@ -293,7 +303,7 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
       <LoanChart
         title="Restgældsudvikling for To-lags belåning"
         subtitle="Samlet gældsafvikling opdelt på Lag 1 og Lag 2"
-        years={30}
+        years={totalYears}
         series={chartSeries}
       />
 
@@ -305,7 +315,7 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
           kurs: 100,
           rente: 0,
           afdragsfriQuarters: 0,
-          totalQuarters: 120,
+          totalQuarters: totalYears * 4,
           bidragsSats: 0,
           monthlyYdelse: result.combinedMonthlyYdelse,
           monthlyYdelseEfterSkat: result.combinedMonthlyYdelseEfterSkat,
