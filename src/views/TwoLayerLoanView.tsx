@@ -11,6 +11,8 @@ import { ValidationToast } from '../components/ValidationToast';
 import { formatKr, formatPercent, formatKurs } from '../utils/formatters';
 import { maxLoanAt80Ltv, buildLtvFieldErrors } from '../utils/ltv';
 import { Layers } from 'lucide-react';
+import { ReportBar, ShowReportLink } from '../components/ReportBar';
+import type { AppMode } from '../utils/appMode';
 
 interface TwoLayerLoanViewProps {
   optagelseLoans: BondLoan[];
@@ -24,6 +26,8 @@ interface TwoLayerLoanViewProps {
   setSelectedLayer1LoanName: (name: string | null) => void;
   selectedLayer2LoanName: string | null;
   setSelectedLayer2LoanName: (name: string | null) => void;
+  mode: AppMode;
+  setMode: (mode: AppMode) => void;
 }
 
 export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
@@ -38,7 +42,10 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
   setSelectedLayer1LoanName,
   selectedLayer2LoanName,
   setSelectedLayer2LoanName,
+  mode,
+  setMode,
 }) => {
+  const isReport = mode === 'report';
   // Defaults: Layer 1 = F-kort, Layer 2 = 4% Fixed med afdrag
   const defaultLayer1 = useMemo(() => {
     return (
@@ -160,19 +167,56 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
 
   return (
     <div className={`flex flex-col gap-5 min-w-0 max-w-full ${fieldErrors.length ? "pb-28" : "pb-8"}`}>
-      {/* Header */}
-      <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
-        <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-semibold text-sm mb-0.5">
-          <Layers className="h-4 w-4" />
-          <span>To-lags belåning</span>
+      {isReport ? (
+        <ReportBar title="Rapport: To-lags belåning" onEdit={() => setMode('edit')} />
+      ) : (
+        <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-semibold text-sm mb-0.5">
+                <Layers className="h-4 w-4" />
+                <span>To-lags belåning</span>
+              </div>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Kombinér to realkreditlån</h2>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Opdel dit lån i to lag – f.eks. et afdragsfrit variabelt lån i bunden (0–40 %) og et fastforrentet lån med afdrag i toppen (40–80 %) for at minimere bidragssats og optimere gældsafviklingen.
+              </p>
+            </div>
+            <ShowReportLink onShow={() => setMode('report')} />
+          </div>
         </div>
-        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Kombinér to realkreditlån</h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Opdel dit lån i to lag – f.eks. et afdragsfrit variabelt lån i bunden (0–40 %) og et fastforrentet lån med afdrag i toppen (40–80 %) for at minimere bidragssats og optimere gældsafviklingen.
-        </p>
-      </div>
+      )}
 
-      {/* Inputs */}
+      {isReport && (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs transition-colors">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">Scenarie (skrivebeskyttet)</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+            <div>
+              <div className="text-slate-500 dark:text-slate-400">Ejendomsværdi</div>
+              <div className="font-semibold text-slate-900 dark:text-slate-100">{formatKr(propertyValue)}</div>
+            </div>
+            <div>
+              <div className="text-slate-500 dark:text-slate-400">Samlet lån</div>
+              <div className="font-semibold text-slate-900 dark:text-slate-100">{formatKr(totalLoanAmount)}</div>
+            </div>
+            <div>
+              <div className="text-slate-500 dark:text-slate-400">Opdeling</div>
+              <div className="font-semibold text-slate-900 dark:text-slate-100">{splitPercent} % LTV</div>
+            </div>
+            <div>
+              <div className="text-slate-500 dark:text-slate-400">Lag 1</div>
+              <div className="font-semibold text-slate-900 dark:text-slate-100 truncate" title={activeLayer1.name}>{activeLayer1.name}</div>
+            </div>
+            <div>
+              <div className="text-slate-500 dark:text-slate-400">Lag 2</div>
+              <div className="font-semibold text-slate-900 dark:text-slate-100 truncate" title={activeLayer2.name}>{activeLayer2.name}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Inputs — hidden in report mode; show read-only layer summaries instead */}
+      {!isReport && (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Left: Global Property / Debt (no sliders on currency) */}
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 flex flex-col gap-3 transition-colors">
@@ -303,6 +347,29 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
           </div>
         </div>
       </div>
+      )}
+
+      {/* In report mode: read-only layer metric cards (no pickers) */}
+      {isReport && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
+            <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase">Lag 1 (0 – {splitPercent} %)</span>
+            <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">{activeLayer1.name}</h3>
+            <div className="text-xs space-y-1.5 text-slate-600 dark:text-slate-400">
+              <div className="flex justify-between"><span>Hovedstol</span><span className="font-semibold text-slate-900 dark:text-slate-100">{formatKr(result.layer1Result.hovedstol)}</span></div>
+              <div className="flex justify-between"><span>Mdl. ydelse efter skat</span><span className="font-semibold text-slate-900 dark:text-slate-100">{formatKr(result.layer1Result.monthlyYdelseEfterSkat)}</span></div>
+            </div>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
+            <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase">Lag 2 ({splitPercent} – {totalLtv} %)</span>
+            <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">{activeLayer2.name}</h3>
+            <div className="text-xs space-y-1.5 text-slate-600 dark:text-slate-400">
+              <div className="flex justify-between"><span>Hovedstol</span><span className="font-semibold text-slate-900 dark:text-slate-100">{formatKr(result.layer2Result.hovedstol)}</span></div>
+              <div className="flex justify-between"><span>Mdl. ydelse efter skat</span><span className="font-semibold text-slate-900 dark:text-slate-100">{formatKr(result.layer2Result.monthlyYdelseEfterSkat)}</span></div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Combined Results */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

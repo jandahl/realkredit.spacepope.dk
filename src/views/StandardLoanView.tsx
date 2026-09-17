@@ -10,6 +10,8 @@ import { ValidationToast } from '../components/ValidationToast';
 import { formatKr, formatPercent, formatKurs } from '../utils/formatters';
 import { maxLoanAt80Ltv, buildLtvFieldErrors } from '../utils/ltv';
 import { Calculator } from 'lucide-react';
+import { ReportBar, ShowReportLink } from '../components/ReportBar';
+import type { AppMode } from '../utils/appMode';
 
 interface StandardLoanViewProps {
   optagelseLoans: BondLoan[];
@@ -19,6 +21,8 @@ interface StandardLoanViewProps {
   setLoanAmount: (val: number) => void;
   selectedStandardLoanName: string | null;
   setSelectedStandardLoanName: (name: string | null) => void;
+  mode: AppMode;
+  setMode: (mode: AppMode) => void;
 }
 
 export const StandardLoanView: React.FC<StandardLoanViewProps> = ({
@@ -29,7 +33,10 @@ export const StandardLoanView: React.FC<StandardLoanViewProps> = ({
   setLoanAmount,
   selectedStandardLoanName,
   setSelectedStandardLoanName,
+  mode,
+  setMode,
 }) => {
+  const isReport = mode === 'report';
   const activeLoan = useMemo(() => {
     if (selectedStandardLoanName) {
       const found = optagelseLoans.find((l) => l.name === selectedStandardLoanName);
@@ -110,19 +117,48 @@ export const StandardLoanView: React.FC<StandardLoanViewProps> = ({
 
   return (
     <div className={`flex flex-col gap-5 min-w-0 max-w-full ${fieldErrors.length ? "pb-28" : "pb-8"}`}>
-      {/* Header */}
-      <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
-        <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-semibold text-sm mb-0.5">
-          <Calculator className="h-4 w-4" />
-          <span>Standardlån</span>
+      {isReport ? (
+        <ReportBar title="Rapport: Standardlån" onEdit={() => setMode('edit')} />
+      ) : (
+        <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-semibold text-sm mb-0.5">
+                <Calculator className="h-4 w-4" />
+                <span>Standardlån</span>
+              </div>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Beregn et nyt Standardlån</h2>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Se månedlig ydelse før og efter skat, afdrag og den komplette annuitetstabel for dit ønskede lån.
+              </p>
+            </div>
+            <ShowReportLink onShow={() => setMode('report')} />
+          </div>
         </div>
-        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Beregn et nyt Standardlån</h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Se månedlig ydelse før og efter skat, afdrag og den komplette annuitetstabel for dit ønskede lån.
-        </p>
-      </div>
+      )}
 
-      {/* Input Configuration */}
+      {isReport && (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs transition-colors">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">Scenarie (skrivebeskyttet)</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div>
+              <div className="text-slate-500 dark:text-slate-400">Ejendomsværdi</div>
+              <div className="font-semibold text-slate-900 dark:text-slate-100">{formatKr(propertyValue)}</div>
+            </div>
+            <div>
+              <div className="text-slate-500 dark:text-slate-400">Udbetalt provenu</div>
+              <div className="font-semibold text-slate-900 dark:text-slate-100">{formatKr(loanAmount)}</div>
+            </div>
+            <div className="col-span-2">
+              <div className="text-slate-500 dark:text-slate-400">Lån</div>
+              <div className="font-semibold text-slate-900 dark:text-slate-100 truncate" title={activeLoan.name}>{activeLoan.name}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Input Configuration — hidden in report mode */}
+      {!isReport && (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 flex flex-col gap-3 transition-colors">
           <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-2">
@@ -198,6 +234,7 @@ export const StandardLoanView: React.FC<StandardLoanViewProps> = ({
           </div>
         </div>
       </div>
+      )}
 
       {/* Metrics Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

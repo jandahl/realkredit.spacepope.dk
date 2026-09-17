@@ -1,11 +1,19 @@
 <!doctype html>
-<html lang="da">
+<html lang="da" class="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%232563eb'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold' font-size='56'>%</text></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Dansk realkreditberegner - Beregn låneomlægning, konvertering, standardlån og to-lags belåning med live obligationskurser fra Nasdaq." />
     <title>realkredit.spacepope.dk</title>
+    <!-- Critical FOUC guard: black shell by default before CSS loads; light users get light early. -->
+    <style id="fouc-theme">
+      html, body, #root { background: #000; color-scheme: dark; }
+      html:not(.dark), html:not(.dark) body, html:not(.dark) #root {
+        background: #f8fafc;
+        color-scheme: light;
+      }
+    </style>
     <script>
     (function () {
       try {
@@ -13,14 +21,15 @@
         var saved = localStorage.getItem(key);
         var mode = saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'dark';
         var dark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-        if (dark) document.documentElement.classList.add('dark');
-        else document.documentElement.classList.remove('dark');
+        var root = document.documentElement;
+        if (dark) root.classList.add('dark');
+        else root.classList.remove('dark');
       } catch (e) {
         document.documentElement.classList.add('dark');
       }
     })();
-  </script>
-</head>
+    </script>
+  </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
