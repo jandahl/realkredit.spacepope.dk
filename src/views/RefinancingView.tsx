@@ -346,12 +346,25 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       }
     }
 
+    const isNewFlex = Boolean(activeNew.flex) || activeNew.name.toLowerCase().includes('f-kort');
+
+    // Uncertainty band for variable rate (F-kort / Flex): rate volatility assumption (+/- 2% widening over time)
+    let newUpper: number[] | undefined;
+    let newLower: number[] | undefined;
+
+    if (isNewFlex) {
+      newUpper = newData.map((val, y) => val > 0 ? Math.min(val * (1 + 0.015 * y), val * 1.35) : 0);
+      newLower = newData.map((val, y) => val > 0 ? Math.max(0, val * (1 - 0.015 * y)) : 0);
+    }
+
     const seriesList: ChartSeries[] = [
       {
         id: 'new',
         name: enableFrivaerdi ? `Option A: Fuld omlægning (${activeNew.name} - ${comparison.newYears} år)` : `Nyt lån (${activeNew.name} - ${comparison.newYears} år)`,
         color: '#2563eb', // Blue
         data: newData,
+        uncertaintyUpper: newUpper,
+        uncertaintyLower: newLower,
       },
       {
         id: 'existing',
@@ -364,6 +377,8 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
 
     if (tillaegslaanComparison) {
       const tillaegData: number[] = [comparison.existingRestgaeld + tillaegslaanComparison.optionB_tillaegslaan.tillaegHovedstol];
+      const rawTillaegData: number[] = [tillaegslaanComparison.optionB_tillaegslaan.tillaegHovedstol];
+
       for (let y = 1; y <= maxYears; y++) {
         let existingRest = 0;
         let tillaegRest = 0;
@@ -377,14 +392,39 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
           tillaegRest = tillaegslaanComparison.optionB_tillaegslaan.tillaegSchedule.schedule[qIndex]?.endRestgaeld ?? 0;
         }
         tillaegData.push(existingRest + tillaegRest);
+        rawTillaegData.push(tillaegRest);
+      }
+
+      let tillaegUpper: number[] | undefined;
+      let tillaegLower: number[] | undefined;
+      let rawUpper: number[] | undefined;
+      let rawLower: number[] | undefined;
+
+      if (isNewFlex) {
+        tillaegUpper = tillaegData.map((val, y) => val > 0 ? val + (val - existingData[Math.min(y, existingData.length - 1)]) * 0.015 * y : 0);
+        tillaegLower = tillaegData.map((val, y) => val > 0 ? Math.max(0, val - (val - existingData[Math.min(y, existingData.length - 1)]) * 0.015 * y) : 0);
+        rawUpper = rawTillaegData.map((val, y) => val > 0 ? Math.min(val * (1 + 0.015 * y), val * 1.35) : 0);
+        rawLower = rawTillaegData.map((val, y) => val > 0 ? Math.max(0, val * (1 - 0.015 * y)) : 0);
       }
 
       seriesList.push({
         id: 'tillaegslaan',
-        name: `Option B: Tillægslån (Behold ${activeExisting.name} + ${activeNew.name})`,
+        name: `Option B: Samlet gæld (Behold ${activeExisting.name} + ${activeNew.name})`,
         color: '#10b981', // Emerald green
         strokeDash: '3 3',
         data: tillaegData,
+        uncertaintyUpper: tillaegUpper,
+        uncertaintyLower: tillaegLower,
+      });
+
+      seriesList.push({
+        id: 'rawTillaeg',
+        name: `Selve Tillægslånet (${activeNew.name} - ${comparison.newYears} år)`,
+        color: '#8b5cf6', // Purple
+        strokeDash: '2 2',
+        data: rawTillaegData,
+        uncertaintyUpper: rawUpper,
+        uncertaintyLower: rawLower,
       });
     }
 
