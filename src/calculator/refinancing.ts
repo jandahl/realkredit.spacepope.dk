@@ -23,7 +23,7 @@ export function calculateRefinancing(
 
   // 1. Redemption of existing bond
   // In Denmark, borrower buys back bonds at spot price (capped at 100 for callable bonds)
-  const redemptionKurs = Math.min(100, existingLoan.kurs);
+  const redemptionKurs = Math.min(100, existingLoan.kurs > 0 ? existingLoan.kurs : 100);
   const indfrielsesBeloeb = (existingRestgaeld * redemptionKurs) / 100;
   const kursgevinstIndfrielse = Math.max(0, existingRestgaeld - indfrielsesBeloeb);
 

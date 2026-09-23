@@ -360,7 +360,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
     const seriesList: ChartSeries[] = [
       {
         id: 'new',
-        name: `Nyt lån (${activeNew.name} - ${comparison.newYears} år)`,
+        name: enableFrivaerdi ? `Option A: Fuld omlægning (${activeNew.name} - ${comparison.newYears} år)` : `Nyt lån (${activeNew.name} - ${comparison.newYears} år)`,
         color: '#2563eb', // Blue
         data: newData,
         uncertaintyUpper: newUpper,
@@ -402,7 +402,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
 
       seriesList.push({
         id: 'tillaegslaan',
-        name: `Option B: Behold ${activeExisting.name} + Tillægslån (${activeNew.name})`,
+        name: `Option B: Tillægslån (Behold ${activeExisting.name} + ${activeNew.name})`,
         color: '#10b981', // Emerald green
         strokeDash: '3 3',
         data: tillaegData,
@@ -412,7 +412,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
     }
 
     return seriesList;
-  }, [comparison, tillaegslaanComparison, activeExisting, activeNew]);
+  }, [comparison, tillaegslaanComparison, activeExisting, activeNew, enableFrivaerdi]);
 
 
   // Option B combined schedule for amortization table
@@ -1274,7 +1274,12 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
       {/* Graphical Chart of Restgæld Progression (scaled to longest loan duration) */}
       <LoanChart
         title="Restgældsudvikling over tid"
-        subtitle={`Sammenligning over ${comparison.maxYears} år (Nuværende lån ${comparison.existingYears} år vs. Nyt lån ${comparison.newYears} år)`}
+        subtitle={
+          `Sammenligning over ${comparison.maxYears} år (Nuværende lån ${comparison.existingYears} år vs. Nyt lån ${comparison.newYears} år).` +
+          (redemptionPrice < 100
+            ? ` Ved Option A indfries nuværende lån til kurs ${formatKurs(redemptionPrice)}, så restgælden starter på ${formatKr(comparison.nyHovedstol)} inkl. gebyrer/udbetaling.`
+            : '')
+        }
         years={comparison.maxYears}
         series={chartSeries}
       />

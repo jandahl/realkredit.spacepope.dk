@@ -37,7 +37,7 @@ export function calculateTillaegslaanComparison(
 
   // 2. Option A: Full Remortgage (Fuldt omlægningslån)
   // Redemption of existing bond
-  const redemptionKurs = Math.min(100, existingLoan.kurs);
+  const redemptionKurs = Math.min(100, existingLoan.kurs > 0 ? existingLoan.kurs : 100);
   const indfrielsesBeloeb = (existingRestgaeld * redemptionKurs) / 100;
   
   const tinglysningFast = 1_825;
