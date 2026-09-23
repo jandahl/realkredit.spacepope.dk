@@ -38,21 +38,31 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 
       {delta && (
         <div className="mt-1.5 flex items-center gap-1 text-xs font-medium">
-          {delta.type === 'positive' && (
-            <span className="flex items-center text-emerald-600 dark:text-emerald-400">
-              <ArrowDownRight className="h-4 w-4" />
-              {delta.text}
-            </span>
-          )}
-          {delta.type === 'negative' && (
-            <span className="flex items-center text-rose-600 dark:text-rose-400">
-              <ArrowUpRight className="h-4 w-4" />
-              {delta.text}
-            </span>
-          )}
-          {delta.type === 'neutral' && (
-            <span className="text-slate-600 dark:text-slate-400">{delta.text}</span>
-          )}
+          {(() => {
+            const isUp = delta.text.includes('+') || delta.text.includes('højere');
+            const isDown = delta.text.includes('-') || delta.text.includes('lavere');
+            const Icon = isUp ? ArrowUpRight : isDown ? ArrowDownRight : delta.type === 'positive' ? ArrowDownRight : ArrowUpRight;
+
+            if (delta.type === 'positive') {
+              return (
+                <span className="flex items-center text-emerald-600 dark:text-emerald-400">
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {delta.text}
+                </span>
+              );
+            }
+            if (delta.type === 'negative') {
+              return (
+                <span className="flex items-center text-rose-600 dark:text-rose-400">
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {delta.text}
+                </span>
+              );
+            }
+            return (
+              <span className="text-slate-600 dark:text-slate-400">{delta.text}</span>
+            );
+          })()}
         </div>
       )}
     </div>
