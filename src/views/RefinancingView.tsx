@@ -37,6 +37,8 @@ interface RefinancingViewProps {
   setEnableFrivaerdi: (val: boolean) => void;
   frivaerdiUdbetalt: number;
   setFrivaerdiUdbetalt: (val: number) => void;
+  frivaerdiStrategy: 'omlaegning' | 'tillaeg';
+  setFrivaerdiStrategy: (strategy: 'omlaegning' | 'tillaeg') => void;
   mode: AppMode;
   setMode: (mode: AppMode) => void;
 }
@@ -58,6 +60,8 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
   setEnableFrivaerdi,
   frivaerdiUdbetalt,
   setFrivaerdiUdbetalt,
+  frivaerdiStrategy,
+  setFrivaerdiStrategy,
   mode,
   setMode,
 }) => {
@@ -153,8 +157,6 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
     if (!activeExisting?.afdragsfri) return 0;
     return Math.min(remainingYears, getDefaultAfdragsfriYears(activeExisting));
   }, [activeExisting, remainingYears]);
-  // Friværdi strategy selector: Option A (Fuld omlægning) vs Option B (Tillægslån)
-  const [frivaerdiStrategy, setFrivaerdiStrategy] = useState<'omlaegning' | 'tillaeg'>('omlaegning');
 
   // Original product term for the existing bond (loebetid → maxTerminer/4 → name → 30)
   const originalExistingTermYears = useMemo(() => {

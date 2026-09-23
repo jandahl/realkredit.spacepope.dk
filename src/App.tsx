@@ -27,6 +27,7 @@ export const App: React.FC = () => {
     setSelectedLayer2LoanName,
     setEnableFrivaerdi,
     setFrivaerdiUdbetalt,
+    setFrivaerdiStrategy,
     getShareableUrl,
   } = useLoanState();
 
@@ -105,6 +106,8 @@ export const App: React.FC = () => {
             setEnableFrivaerdi={setEnableFrivaerdi}
             frivaerdiUdbetalt={state.frivaerdiUdbetalt}
             setFrivaerdiUdbetalt={setFrivaerdiUdbetalt}
+            frivaerdiStrategy={state.frivaerdiStrategy}
+            setFrivaerdiStrategy={setFrivaerdiStrategy}
             mode={state.mode}
             setMode={setMode}
           />

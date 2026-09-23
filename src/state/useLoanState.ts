@@ -19,6 +19,7 @@ export interface SharedLoanState {
   selectedLayer2LoanName: string | null;
   enableFrivaerdi: boolean;
   frivaerdiUdbetalt: number;
+  frivaerdiStrategy: 'omlaegning' | 'tillaeg';
 }
 
 const STORAGE_KEY = 'realkredit_calculator_state_v1';
@@ -38,6 +39,7 @@ const DEFAULT_STATE: SharedLoanState = {
   selectedLayer2LoanName: null,
   enableFrivaerdi: false,
   frivaerdiUdbetalt: 0,
+  frivaerdiStrategy: 'omlaegning',
 };
 
 // Parse initial state from URL params or localStorage
@@ -60,6 +62,9 @@ function getInitialState(): SharedLoanState {
     const splitPercent = parseInt(urlParams.get('split') || '', 10) || DEFAULT_STATE.splitPercent;
     const enableFrivaerdi = urlParams.get('cashout') === '1';
     const frivaerdiUdbetalt = parseInt(urlParams.get('cash') || '', 10) || DEFAULT_STATE.frivaerdiUdbetalt;
+    const stratParam = urlParams.get('strat') || urlParams.get('strategy');
+    const frivaerdiStrategy: 'omlaegning' | 'tillaeg' =
+      stratParam === 'tillaeg' || stratParam === 'b' ? 'tillaeg' : 'omlaegning';
 
     return {
       currentView,
@@ -76,6 +81,7 @@ function getInitialState(): SharedLoanState {
       selectedLayer2LoanName: urlParams.get('l2Loan') || null,
       enableFrivaerdi,
       frivaerdiUdbetalt,
+      frivaerdiStrategy,
     };
   }
 
@@ -119,6 +125,7 @@ export function useLoanState() {
       if (state.frivaerdiUdbetalt > 0) {
         params.set('cash', state.frivaerdiUdbetalt.toString());
       }
+      params.set('strat', state.frivaerdiStrategy);
     }
 
     if (state.selectedExistingLoanName) params.set('oldLoan', state.selectedExistingLoanName);
@@ -197,6 +204,10 @@ export function useLoanState() {
     setState((prev) => ({ ...prev, frivaerdiUdbetalt }));
   }, []);
 
+  const setFrivaerdiStrategy = useCallback((frivaerdiStrategy: 'omlaegning' | 'tillaeg') => {
+    setState((prev) => ({ ...prev, frivaerdiStrategy }));
+  }, []);
+
   const getShareableUrl = useCallback(() => {
     return buildShareUrl(window.location.href);
   }, []);
@@ -216,6 +227,7 @@ export function useLoanState() {
     setSelectedLayer2LoanName,
     setEnableFrivaerdi,
     setFrivaerdiUdbetalt,
+    setFrivaerdiStrategy,
     getShareableUrl,
   };
 }
