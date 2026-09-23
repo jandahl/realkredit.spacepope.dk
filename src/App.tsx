@@ -28,6 +28,10 @@ export const App: React.FC = () => {
     setEnableFrivaerdi,
     setFrivaerdiUdbetalt,
     setFrivaerdiStrategy,
+    setNewLoanYears,
+    setExistingAfdragsfriYears,
+    setNewAfdragsfriYears,
+    setReportStrategy,
     getShareableUrl,
   } = useLoanState();
 
@@ -108,6 +112,14 @@ export const App: React.FC = () => {
             setFrivaerdiUdbetalt={setFrivaerdiUdbetalt}
             frivaerdiStrategy={state.frivaerdiStrategy}
             setFrivaerdiStrategy={setFrivaerdiStrategy}
+            newLoanYearsState={state.newLoanYears}
+            setNewLoanYears={setNewLoanYears}
+            existingAfdragsfriYearsState={state.existingAfdragsfriYears}
+            setExistingAfdragsfriYears={setExistingAfdragsfriYears}
+            newAfdragsfriYearsState={state.newAfdragsfriYears}
+            setNewAfdragsfriYears={setNewAfdragsfriYears}
+            reportStrategyState={state.reportStrategy}
+            setReportStrategy={setReportStrategy}
             mode={state.mode}
             setMode={setMode}
           />

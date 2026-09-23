@@ -39,6 +39,14 @@ interface RefinancingViewProps {
   setFrivaerdiUdbetalt: (val: number) => void;
   frivaerdiStrategy: 'omlaegning' | 'tillaeg';
   setFrivaerdiStrategy: (strategy: 'omlaegning' | 'tillaeg') => void;
+  newLoanYearsState?: number | null;
+  setNewLoanYears: (val: number | null) => void;
+  existingAfdragsfriYearsState?: number | null;
+  setExistingAfdragsfriYears: (val: number | null) => void;
+  newAfdragsfriYearsState?: number | null;
+  setNewAfdragsfriYears: (val: number | null) => void;
+  reportStrategyState?: ReportStrategy | null;
+  setReportStrategy: (val: ReportStrategy) => void;
   mode: AppMode;
   setMode: (mode: AppMode) => void;
 }
@@ -62,16 +70,21 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
   setFrivaerdiUdbetalt,
   frivaerdiStrategy,
   setFrivaerdiStrategy,
+  newLoanYearsState,
+  setNewLoanYears,
+  existingAfdragsfriYearsState,
+  setExistingAfdragsfriYears,
+  newAfdragsfriYearsState,
+  setNewAfdragsfriYears,
+  reportStrategyState,
+  setReportStrategy,
   mode,
   setMode,
 }) => {
   const [showFees, setShowFees] = useState<boolean>(false);
   const [showDumbIdeas, setShowDumbIdeas] = useState<boolean>(false);
-  const [reportStrategy, setReportStrategy] = useState<ReportStrategy>('a');
+  const reportStrategy = reportStrategyState || 'a';
   const isReport = mode === 'report';
-
-  // New loan duration state (defaults to new bond maturity or 30)
-  const [newLoanYears, setNewLoanYears] = useState<number>(30);
 
   // Find matching or default loans
   const activeExisting = useMemo(() => {
@@ -142,15 +155,12 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
     return 30;
   }, [activeNew]);
 
-  // Update newLoanYears when new loan changes or if it exceeds maxNewLoanYears
-  useEffect(() => {
-    setNewLoanYears((prev) => Math.min(prev, maxNewLoanYears));
-  }, [activeNew, maxNewLoanYears]);
-
-  // Remaining interest-free years for existing loan (0 to max for 10 vs 30 product)
-  const [existingAfdragsfriYears, setExistingAfdragsfriYears] = useState<number>(10);
-  // Remaining interest-free years for new loan (0 to max allowed by new bond)
-  const [newAfdragsfriYears, setNewAfdragsfriYears] = useState<number>(0);
+  const newLoanYears = useMemo(() => {
+    if (newLoanYearsState != null) {
+      return Math.min(newLoanYearsState, maxNewLoanYears);
+    }
+    return maxNewLoanYears;
+  }, [newLoanYearsState, maxNewLoanYears]);
 
   // Max remaining IO years for existing loan (10 vs 30 product rule)
   const maxExistingAfdragsfriYears = useMemo(() => {
@@ -164,31 +174,23 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
     return getOriginalTermYears(activeExisting);
   }, [activeExisting]);
 
-  // Sync existingAfdragsfriYears when activeExisting changes or remainingYears changes
-  useEffect(() => {
-    if (activeExisting) {
-      if (!activeExisting.afdragsfri) {
-        setExistingAfdragsfriYears(0);
-      } else {
-        const maxOriginalAfdragsfri = getDefaultAfdragsfriYears(activeExisting);
-        setExistingAfdragsfriYears(
-          estimateRemainingAfdragsfriYears(remainingYears, originalExistingTermYears, maxOriginalAfdragsfri)
-        );
-      }
+  const existingAfdragsfriYears = useMemo(() => {
+    if (!activeExisting?.afdragsfri) return 0;
+    if (existingAfdragsfriYearsState != null) {
+      return Math.min(existingAfdragsfriYearsState, maxExistingAfdragsfriYears);
     }
-  }, [activeExisting, remainingYears, originalExistingTermYears]);
+    const maxOriginalAfdragsfri = getDefaultAfdragsfriYears(activeExisting);
+    return estimateRemainingAfdragsfriYears(remainingYears, originalExistingTermYears, maxOriginalAfdragsfri);
+  }, [activeExisting, existingAfdragsfriYearsState, maxExistingAfdragsfriYears, remainingYears, originalExistingTermYears]);
 
-  // Sync newAfdragsfriYears when activeNew changes
-  useEffect(() => {
-    if (activeNew) {
-      if (!activeNew.afdragsfri) {
-        setNewAfdragsfriYears(0);
-      } else {
-        const defaultAfdragsfri = getDefaultAfdragsfriYears(activeNew);
-        setNewAfdragsfriYears((prev) => (prev === 0 ? defaultAfdragsfri : Math.min(prev, defaultAfdragsfri)));
-      }
+  const newAfdragsfriYears = useMemo(() => {
+    if (!activeNew?.afdragsfri) return 0;
+    const defaultAfdragsfri = getDefaultAfdragsfriYears(activeNew);
+    if (newAfdragsfriYearsState != null) {
+      return Math.min(newAfdragsfriYearsState, Math.min(defaultAfdragsfri, newLoanYears));
     }
-  }, [activeNew]);
+    return 0;
+  }, [activeNew, newAfdragsfriYearsState, newLoanYears]);
 
   // Slider / hard max: strategy-specific cost-aware 80% LTV (fees + kurs→hovedstol).
   // Do NOT use strategy "both" — that crushed A@below-pari while B still had room.

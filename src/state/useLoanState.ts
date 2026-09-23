@@ -20,6 +20,10 @@ export interface SharedLoanState {
   enableFrivaerdi: boolean;
   frivaerdiUdbetalt: number;
   frivaerdiStrategy: 'omlaegning' | 'tillaeg';
+  newLoanYears: number | null;
+  existingAfdragsfriYears: number | null;
+  newAfdragsfriYears: number | null;
+  reportStrategy: 'a' | 'b' | 'both';
 }
 
 const STORAGE_KEY = 'realkredit_calculator_state_v1';
@@ -40,6 +44,10 @@ const DEFAULT_STATE: SharedLoanState = {
   enableFrivaerdi: false,
   frivaerdiUdbetalt: 0,
   frivaerdiStrategy: 'omlaegning',
+  newLoanYears: null,
+  existingAfdragsfriYears: null,
+  newAfdragsfriYears: null,
+  reportStrategy: 'a',
 };
 
 // Parse initial state from URL params or localStorage
@@ -66,6 +74,19 @@ function getInitialState(): SharedLoanState {
     const frivaerdiStrategy: 'omlaegning' | 'tillaeg' =
       stratParam === 'tillaeg' || stratParam === 'b' ? 'tillaeg' : 'omlaegning';
 
+    const nyearsVal = parseInt(urlParams.get('nyears') || '', 10);
+    const newLoanYears = !isNaN(nyearsVal) && nyearsVal > 0 ? nyearsVal : null;
+
+    const oldIoVal = parseInt(urlParams.get('oldIo') || '', 10);
+    const existingAfdragsfriYears = !isNaN(oldIoVal) && oldIoVal >= 0 ? oldIoVal : null;
+
+    const newIoVal = parseInt(urlParams.get('newIo') || '', 10);
+    const newAfdragsfriYears = !isNaN(newIoVal) && newIoVal >= 0 ? newIoVal : null;
+
+    const repStratParam = urlParams.get('repStrat') || urlParams.get('reportStrategy');
+    const reportStrategy: 'a' | 'b' | 'both' =
+      repStratParam === 'b' ? 'b' : repStratParam === 'both' ? 'both' : 'a';
+
     return {
       currentView,
       mode,
@@ -82,6 +103,10 @@ function getInitialState(): SharedLoanState {
       enableFrivaerdi,
       frivaerdiUdbetalt,
       frivaerdiStrategy,
+      newLoanYears,
+      existingAfdragsfriYears,
+      newAfdragsfriYears,
+      reportStrategy,
     };
   }
 
@@ -133,6 +158,10 @@ export function useLoanState() {
     if (state.selectedStandardLoanName) params.set('stdLoan', state.selectedStandardLoanName);
     if (state.selectedLayer1LoanName) params.set('l1Loan', state.selectedLayer1LoanName);
     if (state.selectedLayer2LoanName) params.set('l2Loan', state.selectedLayer2LoanName);
+    if (state.newLoanYears != null) params.set('nyears', state.newLoanYears.toString());
+    if (state.existingAfdragsfriYears != null) params.set('oldIo', state.existingAfdragsfriYears.toString());
+    if (state.newAfdragsfriYears != null) params.set('newIo', state.newAfdragsfriYears.toString());
+    if (state.mode === 'report' || state.reportStrategy !== 'a') params.set('repStrat', state.reportStrategy);
 
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState(null, '', newUrl);
@@ -208,6 +237,22 @@ export function useLoanState() {
     setState((prev) => ({ ...prev, frivaerdiStrategy }));
   }, []);
 
+  const setNewLoanYears = useCallback((newLoanYears: number | null) => {
+    setState((prev) => ({ ...prev, newLoanYears }));
+  }, []);
+
+  const setExistingAfdragsfriYears = useCallback((existingAfdragsfriYears: number | null) => {
+    setState((prev) => ({ ...prev, existingAfdragsfriYears }));
+  }, []);
+
+  const setNewAfdragsfriYears = useCallback((newAfdragsfriYears: number | null) => {
+    setState((prev) => ({ ...prev, newAfdragsfriYears }));
+  }, []);
+
+  const setReportStrategy = useCallback((reportStrategy: 'a' | 'b' | 'both') => {
+    setState((prev) => ({ ...prev, reportStrategy }));
+  }, []);
+
   const getShareableUrl = useCallback(() => {
     return buildShareUrl(window.location.href);
   }, []);
@@ -228,6 +273,10 @@ export function useLoanState() {
     setEnableFrivaerdi,
     setFrivaerdiUdbetalt,
     setFrivaerdiStrategy,
+    setNewLoanYears,
+    setExistingAfdragsfriYears,
+    setNewAfdragsfriYears,
+    setReportStrategy,
     getShareableUrl,
   };
 }
