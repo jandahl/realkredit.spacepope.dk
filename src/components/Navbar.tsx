@@ -153,7 +153,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
               <span>
                 {rateSource === 'live'
-                  ? `Live (${lastUpdated})`
+                  ? `Live Totalkredit (${lastUpdated})`
                   : rateSource === 'partial'
                     ? `Delvist live (${lastUpdated})`
                     : `Snapshot fra ${lastUpdated}`}
