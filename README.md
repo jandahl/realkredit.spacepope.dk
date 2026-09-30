@@ -44,11 +44,13 @@ Vitest dækker amortisering, refinancing/afdragsfri-regressioner og tillægslån
 
 ## Kurser / API
 
-- Live kurser hentes fra API (`/kurser/optagelse` og `/kurser/indfrielse`).
-- Ved fejl eller tomt svar bruges **indbyggede snapshot-kurser** (`src/api/fallbackRates.ts`), stemplet med `FALLBACK_RATES_AS_OF`.
-- Navbar viser `Live`, `Delvist live` eller `Snapshot fra <dato>` — fallback bruger **ikke** et fake “nu”-tidspunkt.
-
-I udvikling proxies Vite til API’et (se `vite.config.ts`).
+- Live kurser hentes direkte fra Totalkredits offentlige bondinformation-API (CORS `*`), uden AWS-proxy:
+  - Optagelse fast: `privat-udbetaling-af-laan-aktuelle-kurser-kunder`
+  - Optagelse variabel: `privat-udbetaling-af-variabel-laan-aktuelle-kurser-kunder`
+  - Indfrielse: `indfrielse-af-laan-aktuelle-kurser-og-terminstillaeg-kunder`
+- Bidragssatser findes ikke i Totalkredit-JSON og hardcodes stadig fra prisblad-bånd (samme som snapshot).
+- Ved netværks-/parsefejl eller tomt svar bruges **indbyggede snapshot-kurser** (`src/api/fallbackRates.ts`), stemplet med `FALLBACK_RATES_AS_OF`.
+- Navbar viser `Live`, `Delvist live` eller `Snapshot fra <dato>` — live-tid kommer fra Totalkredit `lastUpdatedTimestamp` når muligt; fallback bruger **ikke** et fake “nu”-tidspunkt.
 
 ## Gebyr- og skat-antagelser (estimater)
 
