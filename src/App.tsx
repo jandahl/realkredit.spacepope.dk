@@ -4,7 +4,7 @@ import { RefinancingView } from './views/RefinancingView';
 import { StandardLoanView } from './views/StandardLoanView';
 import { TwoLayerLoanView } from './views/TwoLayerLoanView';
 import { WelcomeDisclaimerModal } from './components/WelcomeDisclaimerModal';
-import { fetchKurser } from './api/rates';
+import { fetchKurser, TOTALKREDIT_KURSER_URL, NASDAQ_MORTGAGE_BONDS_URL } from './api/rates';
 import type { BondLoan } from './calculator/types';
 import { FALLBACK_OPTAGELSE_LAAN, FALLBACK_INDFRIELSE_LAAN, FALLBACK_RATES_AS_OF_LABEL } from './api/fallbackRates';
 import { useLoanState } from './state/useLoanState';
@@ -165,7 +165,26 @@ export const App: React.FC = () => {
             realkredit.spacepope.dk
           </div>
           <div className="flex items-center gap-4 text-slate-400 dark:text-slate-500">
-            <span>Obligationskurser fra Nasdaq Nordic / Totalkredit</span>
+            <span>
+              Obligationskurser fra{' '}
+              <a
+                href={NASDAQ_MORTGAGE_BONDS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-slate-700 dark:text-slate-400 dark:decoration-slate-600 dark:hover:text-slate-200"
+              >
+                Nasdaq Nordic
+              </a>
+              {' / '}
+              <a
+                href={TOTALKREDIT_KURSER_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-slate-700 dark:text-slate-400 dark:decoration-slate-600 dark:hover:text-slate-200"
+              >
+                Totalkredit
+              </a>
+            </span>
           </div>
         </div>
       </footer>

@@ -10,6 +10,14 @@ export const TOTALKREDIT_TABLE_IDS = {
   indfrielse: 'indfrielse-af-laan-aktuelle-kurser-og-terminstillaeg-kunder',
 } as const;
 
+/** Public Totalkredit kurs overview (udbetaling / indfrielse tables). */
+export const TOTALKREDIT_KURSER_URL =
+  'https://www.totalkredit.dk/boliglan/kurser-og-priser/';
+
+/** Nasdaq Nordic mortgage-bond market overview (individual bonds use loan.nasdaqUrl). */
+export const NASDAQ_MORTGAGE_BONDS_URL =
+  'https://www.nasdaq.com/da/european-market-activity/mortgage-bonds';
+
 /** Static bidrag bands from Totalkredit prisblad (not present in bondinformation JSON). */
 export const BIDRAG_FIXED_AFDRAG: [number, number, number] = [0.0045, 0.0085, 0.012];
 export const BIDRAG_FIXED_AFDRAGSFRI: [number, number, number] = [0.0055, 0.0115, 0.02];

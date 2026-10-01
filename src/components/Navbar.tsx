@@ -12,6 +12,7 @@ import {
   Check,
 } from 'lucide-react';
 import type { ThemeMode } from '../utils/theme';
+import { TOTALKREDIT_KURSER_URL } from '../api/rates';
 
 export type ViewType = 'refinancing' | 'standard' | 'twolayer';
 
@@ -138,6 +139,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <div className="hidden lg:flex items-center gap-2 text-xs">
             <div
+              title="Obligationskurser fra Totalkredit / Nasdaq Nordic"
               className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium ${
                 rateSource === 'live'
                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800'
@@ -152,11 +154,25 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <AlertCircle className={`h-3.5 w-3.5 ${rateSource === 'partial' ? 'text-sky-600 dark:text-sky-400' : 'text-amber-600 dark:text-amber-400'}`} />
               )}
               <span>
-                {rateSource === 'live'
-                  ? `Live Totalkredit (${lastUpdated})`
-                  : rateSource === 'partial'
-                    ? `Delvist live (${lastUpdated})`
-                    : `Snapshot fra ${lastUpdated}`}
+                {rateSource === 'live' ? (
+                  <>
+                    Live{' '}
+                    <a
+                      href={TOTALKREDIT_KURSER_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline decoration-emerald-400/60 underline-offset-2 hover:decoration-emerald-600 dark:decoration-emerald-500/50 dark:hover:decoration-emerald-300"
+                      title="Se obligationskurser hos Totalkredit"
+                    >
+                      Totalkredit
+                    </a>
+                    {` (${lastUpdated})`}
+                  </>
+                ) : rateSource === 'partial' ? (
+                  `Delvist live (${lastUpdated})`
+                ) : (
+                  `Snapshot fra ${lastUpdated}`
+                )}
               </span>
             </div>
 
