@@ -44,7 +44,9 @@ Vitest dækker amortisering, refinancing/afdragsfri-regressioner og tillægslån
 
 ## Kurser / API
 
-- Live kurser hentes direkte fra Totalkredits offentlige bondinformation-API (CORS `*`), uden AWS-proxy:
+Offentlige kurslister: [Totalkredit – Obligationskurser og prisblad](https://www.totalkredit.dk/boliglan/kurser-og-priser/) (udbetaling og indfrielse). Enkelte obligationer linker til [Nasdaq Nordic](https://www.nasdaq.com/da/european-market-activity/mortgage-bonds) via `nasdaqUrl`.
+
+- Live kurser hentes direkte fra [Totalkredits](https://www.totalkredit.dk/boliglan/kurser-og-priser/) offentlige bondinformation-API (CORS `*`), uden AWS-proxy:
   - Optagelse fast: `privat-udbetaling-af-laan-aktuelle-kurser-kunder`
   - Optagelse variabel: `privat-udbetaling-af-variabel-laan-aktuelle-kurser-kunder`
   - Indfrielse: `indfrielse-af-laan-aktuelle-kurser-og-terminstillaeg-kunder`
@@ -73,4 +75,4 @@ React 19 + TypeScript + Vite + Tailwind CSS 4 + Vitest.
 
 ## Licens / ansvar
 
-Brug på eget ansvar. Ingen garanti for korrekthed ift. aktuelle Totalkredit/Nasdaq-vilkår, skat eller gebyrer.
+Brug på eget ansvar. Ingen garanti for korrekthed ift. aktuelle [Totalkredit](https://www.totalkredit.dk/boliglan/kurser-og-priser/)/[Nasdaq](https://www.nasdaq.com/da/european-market-activity/mortgage-bonds)-vilkår, skat eller gebyrer.
