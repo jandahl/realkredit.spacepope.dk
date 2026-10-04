@@ -253,6 +253,10 @@ export function useLoanState() {
     setState((prev) => ({ ...prev, reportStrategy }));
   }, []);
 
+  const setEntireState = useCallback((newState: SharedLoanState) => {
+    setState(newState);
+  }, []);
+
   const getShareableUrl = useCallback(() => {
     return buildShareUrl(window.location.href);
   }, []);
@@ -277,6 +281,7 @@ export function useLoanState() {
     setExistingAfdragsfriYears,
     setNewAfdragsfriYears,
     setReportStrategy,
+    setEntireState,
     getShareableUrl,
   };
 }

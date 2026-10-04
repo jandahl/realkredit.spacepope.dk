@@ -13,6 +13,7 @@ interface ReportBarProps {
   optionBDisabledReason?: string;
   title?: string;
   getShareableUrl?: () => string;
+  onOpenScenarios?: () => void;
 }
 
 export const ReportBar: React.FC<ReportBarProps> = ({
@@ -23,6 +24,7 @@ export const ReportBar: React.FC<ReportBarProps> = ({
   optionBDisabledReason = 'Aktivér friværdiudtag for at sammenligne tillægslån.',
   title = 'Rapport',
   getShareableUrl,
+  onOpenScenarios,
 }) => {
   const [copied, setCopied] = useState(false);
   const showStrategy = typeof strategy === 'string' && typeof onStrategyChange === 'function';
@@ -56,6 +58,16 @@ export const ReportBar: React.FC<ReportBarProps> = ({
         </div>
 
         <div className="flex items-center gap-2 shrink-0 print:hidden">
+          {onOpenScenarios && (
+            <button
+              type="button"
+              onClick={onOpenScenarios}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-2xs transition-colors cursor-pointer"
+            >
+              <span>Sammenlign scenarier</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={handleShare}

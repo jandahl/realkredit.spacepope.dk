@@ -32,6 +32,7 @@ export const App: React.FC = () => {
     setExistingAfdragsfriYears,
     setNewAfdragsfriYears,
     setReportStrategy,
+    setEntireState,
     getShareableUrl,
   } = useLoanState();
 
@@ -123,6 +124,8 @@ export const App: React.FC = () => {
             mode={state.mode}
             setMode={setMode}
             getShareableUrl={getShareableUrl}
+            currentState={state}
+            onRestoreScenario={setEntireState}
           />
         )}
 

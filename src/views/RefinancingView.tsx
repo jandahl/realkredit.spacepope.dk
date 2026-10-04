@@ -18,7 +18,9 @@ import { ValidationToast } from '../components/ValidationToast';
 import { formatKr, formatKurs, formatPercent } from '../utils/formatters';
 import { computeBreakevenSeries } from '../utils/breakeven';
 import { maxLoanAt80Ltv, maxCostAwareFrivaerdi, estimateOptionANyHovedstol, estimateOptionBTotalNominal, buildLtvFieldErrors, mapCashoutAcrossStrategyMax } from '../utils/ltv';
-import { Sparkles, Banknote, HelpCircle, ChevronDown, ChevronUp, Receipt, Lightbulb, TrendingUp, TrendingDown } from 'lucide-react';
+import { Sparkles, Banknote, HelpCircle, ChevronDown, ChevronUp, Receipt, Lightbulb, TrendingUp, TrendingDown, Scale } from 'lucide-react';
+import { ScenarioComparisonModal } from '../components/ScenarioComparisonModal';
+import type { SharedLoanState } from '../state/useLoanState';
 
 interface RefinancingViewProps {
   indfrielseLoans: BondLoan[];
@@ -50,6 +52,8 @@ interface RefinancingViewProps {
   mode: AppMode;
   setMode: (mode: AppMode) => void;
   getShareableUrl?: () => string;
+  currentState?: SharedLoanState;
+  onRestoreScenario?: (state: SharedLoanState) => void;
 }
 
 export const RefinancingView: React.FC<RefinancingViewProps> = ({
@@ -82,9 +86,12 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
   mode,
   setMode,
   getShareableUrl,
+  currentState,
+  onRestoreScenario,
 }) => {
   const [showFees, setShowFees] = useState<boolean>(false);
   const [showDumbIdeas, setShowDumbIdeas] = useState<boolean>(false);
+  const [showScenariosModal, setShowScenariosModal] = useState<boolean>(false);
   const reportStrategy = reportStrategyState || 'a';
   const isReport = mode === 'report';
 
@@ -597,6 +604,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
           optionBAvailable={optionBAvailable}
           optionBDisabledReason="Tillægslån (Option B) kræver friværdiudtag i scenariet. Tryk Rediger for at aktivere."
           getShareableUrl={getShareableUrl}
+          onOpenScenarios={currentState && onRestoreScenario ? () => setShowScenariosModal(true) : undefined}
         />
       ) : (
         <div className="rounded-xl bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 p-3.5 sm:p-4 text-white shadow-sm">
@@ -614,7 +622,17 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
               </p>
             </div>
 
-            <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+            <div className="flex flex-wrap items-center gap-2 self-start sm:self-center shrink-0">
+              {currentState && onRestoreScenario && (
+                <button
+                  type="button"
+                  onClick={() => setShowScenariosModal(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-white/35 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/95 backdrop-blur-sm hover:bg-white/20 transition-all cursor-pointer shadow-2xs"
+                >
+                  <Scale className="h-3.5 w-3.5 text-blue-200" />
+                  <span>Scenarier</span>
+                </button>
+              )}
               <ShowReportLink onShow={() => setMode('report')} />
               <button
                 type="button"
@@ -898,6 +916,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
             selectedLoan={activeExisting}
             onSelectLoan={(l) => setSelectedExistingLoanName(l.name)}
             subtext={`Obligationskurs: ${formatKurs(activeExisting.kurs)} • Indfrielseskurs: ${formatKurs(Math.min(100, activeExisting.kurs))}`}
+            allowCustom={true}
           />
 
           <div className="border-t border-slate-100 dark:border-slate-800 pt-3">
@@ -907,6 +926,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
               selectedLoan={activeNew}
               onSelectLoan={(l) => setSelectedNewLoanName(l.name)}
               subtext={`Aktuel optagelseskurs: ${formatKurs(activeNew.kurs)} • Løbetid ${newLoanYears} år`}
+              allowCustom={true}
             />
           </div>
 
@@ -1383,6 +1403,23 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
         existingAfdragsfriYears={existingAfdragsfriYears}
         newAfdragsfriYears={newAfdragsfriYears}
       />
+
+      {/* Scenario Comparison Modal */}
+      {currentState && onRestoreScenario && (
+        <ScenarioComparisonModal
+          isOpen={showScenariosModal}
+          onClose={() => setShowScenariosModal(false)}
+          currentState={currentState}
+          currentMetrics={{
+            monthlyPaymentAfterTax: displayNyMonthlyYdelse,
+            monthlyAfdrag: displayMonthlyAfdrag,
+            deltaRestgaeld: displayDeltaRestgaeld,
+            breakevenYears,
+            loanTitle: `${activeNew.name} (${newLoanYears} år)`,
+          }}
+          onRestoreScenario={onRestoreScenario}
+        />
+      )}
 
       <ValidationToast errors={fieldErrors} />
     </div>
