@@ -296,6 +296,7 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
             selectedLoan={activeLayer1}
             onSelectLoan={(l) => setSelectedLayer1LoanName(l.name)}
             subtext={`Kurs ${formatKurs(activeLayer1.kurs)} • Rente ${formatPercent(activeLayer1.rente)}`}
+            allowCustom={true}
           />
 
           <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3.5 text-xs text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800 space-y-1.5 mt-auto">
@@ -331,6 +332,7 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
             selectedLoan={activeLayer2}
             onSelectLoan={(l) => setSelectedLayer2LoanName(l.name)}
             subtext={`Kurs ${formatKurs(activeLayer2.kurs)} • Rente ${formatPercent(activeLayer2.rente)}`}
+            allowCustom={true}
           />
 
           <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3.5 text-xs text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800 space-y-1.5 mt-auto">

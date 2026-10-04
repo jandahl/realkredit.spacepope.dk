@@ -214,6 +214,7 @@ export const StandardLoanView: React.FC<StandardLoanViewProps> = ({
             selectedLoan={activeLoan}
             onSelectLoan={(l) => setSelectedStandardLoanName(l.name)}
             subtext={`Kurs ${formatKurs(activeLoan.kurs)} • Rente ${formatPercent(activeLoan.rente)} • Løbetid ${activeLoan.loebetid || 30} år`}
+            allowCustom={true}
           />
 
           <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 p-4 text-xs text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800 space-y-2">

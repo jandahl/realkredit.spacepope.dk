@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import type { LoanAmortizationResult } from '../calculator/types';
 import { formatKr } from '../utils/formatters';
-import { ChevronDown, ChevronUp, TableProperties } from 'lucide-react';
+import { ChevronDown, ChevronUp, TableProperties, Download } from 'lucide-react';
+import { exportAmortizationToCsv } from '../utils/csvExport';
 
 interface AmortizationTableProps {
   calculation: LoanAmortizationResult;
@@ -89,26 +90,45 @@ export const AmortizationTable: React.FC<AmortizationTableProps> = ({
               Visning:
             </span>
 
-            <div className="inline-flex rounded-lg bg-slate-200/70 dark:bg-slate-800 p-0.5 text-xs font-medium">
+            <div className="flex items-center gap-2">
+              <div className="inline-flex rounded-lg bg-slate-200/70 dark:bg-slate-800 p-0.5 text-xs font-medium">
+                <button
+                  onClick={() => setViewMode('yearly')}
+                  className={`rounded-md px-2.5 py-1 transition-all ${
+                    viewMode === 'yearly'
+                      ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-slate-100'
+                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Årsoversigt
+                </button>
+                <button
+                  onClick={() => setViewMode('quarterly')}
+                  className={`rounded-md px-2.5 py-1 transition-all ${
+                    viewMode === 'quarterly'
+                      ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-slate-100'
+                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Terminer (kvartal)
+                </button>
+              </div>
+
               <button
-                onClick={() => setViewMode('yearly')}
-                className={`rounded-md px-2.5 py-1 transition-all ${
-                  viewMode === 'yearly'
-                    ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-slate-100'
-                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
-                }`}
+                type="button"
+                onClick={() =>
+                  exportAmortizationToCsv(
+                    calculation,
+                    `${title.replace(/[^a-zA-Z0-9æøåÆØÅ_-]/g, '_')}_${viewMode}`,
+                    viewMode,
+                  )
+                }
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/80 transition-colors shadow-2xs cursor-pointer"
+                title="Download amortiseringsplan som CSV-fil til Excel"
               >
-                Årsoversigt
-              </button>
-              <button
-                onClick={() => setViewMode('quarterly')}
-                className={`rounded-md px-2.5 py-1 transition-all ${
-                  viewMode === 'quarterly'
-                    ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-slate-100'
-                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
-                }`}
-              >
-                Terminer (kvartal)
+                <Download className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                <span className="hidden sm:inline">Eksportér CSV</span>
+                <span className="sm:hidden">CSV</span>
               </button>
             </div>
           </div>
