@@ -169,10 +169,13 @@ export const AmortizationTable: React.FC<AmortizationTableProps> = ({
             </table>
           </div>
 
-          <div className="border-t border-slate-100 bg-slate-50/50 p-2 text-center dark:border-slate-800 dark:bg-slate-800/30">
+          <div className="border-t border-slate-100 bg-slate-50/50 p-2.5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-800/30 dark:text-slate-400">
+            <span className="text-[11px]">
+              * Skattefradrag er beregnet med standard dansk rentefradragssats på 25,6 % af rente og bidrag.
+            </span>
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+              className="inline-flex items-center gap-1.5 font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 cursor-pointer"
             >
               {isExpanded ? (
                 <>

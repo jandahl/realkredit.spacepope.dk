@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 
 const STORAGE_KEY = 'hide_welcome_disclaimer';
@@ -16,6 +16,13 @@ export const WelcomeDisclaimerModal: React.FC = () => {
     }
   }, []);
 
+  const handleClose = useCallback(() => {
+    if (dontShowAgain) {
+      localStorage.setItem(STORAGE_KEY, 'true');
+    }
+    setIsOpen(false);
+  }, [dontShowAgain]);
+
   useEffect(() => {
     if (!isOpen) return;
     primaryBtnRef.current?.focus();
@@ -28,14 +35,7 @@ export const WelcomeDisclaimerModal: React.FC = () => {
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, dontShowAgain]);
-
-  const handleClose = () => {
-    if (dontShowAgain) {
-      localStorage.setItem(STORAGE_KEY, 'true');
-    }
-    setIsOpen(false);
-  };
+  }, [isOpen, handleClose]);
 
   if (!isOpen) return null;
 

@@ -49,6 +49,7 @@ interface RefinancingViewProps {
   setReportStrategy: (val: ReportStrategy) => void;
   mode: AppMode;
   setMode: (mode: AppMode) => void;
+  getShareableUrl?: () => string;
 }
 
 export const RefinancingView: React.FC<RefinancingViewProps> = ({
@@ -80,6 +81,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
   setReportStrategy,
   mode,
   setMode,
+  getShareableUrl,
 }) => {
   const [showFees, setShowFees] = useState<boolean>(false);
   const [showDumbIdeas, setShowDumbIdeas] = useState<boolean>(false);
@@ -594,6 +596,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
           onStrategyChange={setReportStrategy}
           optionBAvailable={optionBAvailable}
           optionBDisabledReason="Tillægslån (Option B) kræver friværdiudtag i scenariet. Tryk Rediger for at aktivere."
+          getShareableUrl={getShareableUrl}
         />
       ) : (
         <div className="rounded-xl bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 p-3.5 sm:p-4 text-white shadow-sm">
@@ -1289,6 +1292,18 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
             : comparison.maxYears
         }
         frivaerdiUdbetalt={effectiveFrivaerdi}
+        title={
+          isOptionBActive
+            ? 'Breakeven (Option B: Nuværende lån + Tillægslån)'
+            : enableFrivaerdi
+              ? 'Breakeven (Option A: Fuld omlægning)'
+              : 'Breakeven (Nyt lån vs. Nuværende)'
+        }
+        subtitle={
+          isOptionBActive
+            ? `Formuejusteret balance mellem nuværende lån alene og den samlede Option B-løsning (nuværende + tillægslån på ${formatKr(effectiveFrivaerdi)}).`
+            : undefined
+        }
         onOpenDumbIdeas={() => setShowDumbIdeas(true)}
       />
 

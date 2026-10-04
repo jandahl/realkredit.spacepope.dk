@@ -10,14 +10,24 @@ interface BreakevenChartProps {
   maxYears: number;
   /** Friværdi udbetalt — credited as constant formue in the balance. */
   frivaerdiUdbetalt?: number;
+  title?: string;
+  subtitle?: string;
   onOpenDumbIdeas?: () => void;
 }
+
+const WIDTH = 800;
+const HEIGHT = 300;
+const PADDING = { top: 20, right: 30, bottom: 40, left: 80 };
+const PLOT_WIDTH = WIDTH - PADDING.left - PADDING.right;
+const PLOT_HEIGHT = HEIGHT - PADDING.top - PADDING.bottom;
 
 export const BreakevenChart: React.FC<BreakevenChartProps> = ({
   existingSchedule,
   newSchedule,
   maxYears,
   frivaerdiUdbetalt = 0,
+  title = 'Breakeven',
+  subtitle,
   onOpenDumbIdeas,
 }) => {
   const [hoveredQuarter, setHoveredQuarter] = useState<number | null>(null);
@@ -43,13 +53,6 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
     Number.isFinite(maxYears) &&
     maxYears > 0;
 
-  const width = 800;
-  const height = 300;
-  const padding = { top: 20, right: 30, bottom: 40, left: 80 };
-
-  const plotWidth = width - padding.left - padding.right;
-  const plotHeight = height - padding.top - padding.bottom;
-
   const { minY, maxY } = useMemo(() => {
     let min = 0;
     let max = 0;
@@ -65,12 +68,12 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
   }, [dataPoints]);
 
   const getYPos = (val: number) => {
-    return padding.top + plotHeight - ((val - minY) / (maxY - minY)) * plotHeight;
+    return PADDING.top + PLOT_HEIGHT - ((val - minY) / (maxY - minY)) * PLOT_HEIGHT;
   };
 
   const getXPos = (quarter: number) => {
-    if (totalQuarters <= 0) return padding.left;
-    return padding.left + (quarter / totalQuarters) * plotWidth;
+    if (totalQuarters <= 0) return PADDING.left;
+    return PADDING.left + (quarter / totalQuarters) * PLOT_WIDTH;
   };
 
   const zeroY = getYPos(0);
@@ -94,11 +97,11 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
     for (let y = 0; y <= axisYears + 1e-9; y += step) {
       ticks.push({
         year: Math.round(y * 10) / 10,
-        x: padding.left + (y / axisYears) * plotWidth,
+        x: PADDING.left + (y / axisYears) * PLOT_WIDTH,
       });
     }
     return ticks;
-  }, [axisYears, plotWidth, padding.left, hasValidSeries]);
+  }, [axisYears, hasValidSeries]);
 
   const yTicks = useMemo(() => {
     if (!hasValidSeries) return [];
@@ -107,24 +110,24 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
       const val = minY + step * i;
       return {
         val,
-        y: padding.top + plotHeight - ((val - minY) / (maxY - minY)) * plotHeight,
+        y: PADDING.top + PLOT_HEIGHT - ((val - minY) / (maxY - minY)) * PLOT_HEIGHT,
         label:
           Math.abs(val) >= 1_000_000
             ? `${(val / 1_000_000).toFixed(1).replace('.', ',')} mio.`
             : `${Math.round(val / 1_000)} t.`,
       };
     });
-  }, [minY, maxY, hasValidSeries, plotHeight, padding.top]);
+  }, [minY, maxY, hasValidSeries]);
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!hasValidSeries) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const relativeX = (e.clientX - rect.left) / rect.width;
-    const svgX = relativeX * width;
-    const plotX = svgX - padding.left;
+    const svgX = relativeX * WIDTH;
+    const plotX = svgX - PADDING.left;
 
-    if (plotX >= 0 && plotX <= plotWidth) {
-      const q = Math.round((plotX / plotWidth) * totalQuarters);
+    if (plotX >= 0 && plotX <= PLOT_WIDTH) {
+      const q = Math.round((plotX / PLOT_WIDTH) * totalQuarters);
       setHoveredQuarter(Math.max(0, Math.min(totalQuarters, q)));
     } else {
       setHoveredQuarter(null);
@@ -143,7 +146,7 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Breakeven</h3>
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">{title}</h3>
             {hasValidSeries && breakevenCrossing !== null ? (
               <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400">
                 Breakeven efter {Math.floor(breakevenCrossing / 4)} år og{' '}
@@ -151,7 +154,7 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
               </span>
             ) : hasValidSeries && dataPoints[0]?.balance < 0 ? (
               <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400">
-                Nyt lån er fordelagtigt i hele løbetiden
+                {title.includes('Option B') ? 'Tillægslån er fordelagtigt i hele løbetiden' : 'Nyt lån er fordelagtigt i hele løbetiden'}
               </span>
             ) : hasValidSeries ? (
               <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-400">
@@ -160,8 +163,12 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
             ) : null}
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Formuejusteret balance: Σ(Δydelse) + (R_nyt − R_gammel)
-            {frivaerdiUdbetalt > 0 ? ` − udbetaling (${formatKr(frivaerdiUdbetalt)})` : ''}
+            {subtitle || (
+              <>
+                Formuejusteret balance: Σ(Δydelse) + (R_nyt − R_gammel)
+                {frivaerdiUdbetalt > 0 ? ` − udbetaling (${formatKr(frivaerdiUdbetalt)})` : ''}
+              </>
+            )}
           </p>
         </div>
 
@@ -201,7 +208,7 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
       ) : (
       <div className="relative w-full overflow-hidden">
         <svg
-          viewBox={`0 0 ${width} ${height}`}
+          viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           className="w-full h-auto cursor-crosshair select-none text-slate-800 dark:text-slate-200"
           onMouseMove={handleMouseMove}
           onMouseLeave={() => setHoveredQuarter(null)}
@@ -209,16 +216,16 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
           {yTicks.map((tick) => (
             <g key={tick.val}>
               <line
-                x1={padding.left}
+                x1={PADDING.left}
                 y1={tick.y}
-                x2={width - padding.right}
+                x2={WIDTH - PADDING.right}
                 y2={tick.y}
                 stroke="#e2e8f0"
                 className="dark:opacity-40"
                 strokeDasharray="4 4"
               />
               <text
-                x={padding.left - 10}
+                x={PADDING.left - 10}
                 y={tick.y + 4}
                 textAnchor="end"
                 fill={tickFill}
@@ -233,16 +240,16 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
             <g key={tick.year}>
               <line
                 x1={tick.x}
-                y1={padding.top}
+                y1={PADDING.top}
                 x2={tick.x}
-                y2={height - padding.bottom}
+                y2={HEIGHT - PADDING.bottom}
                 stroke="#e2e8f0"
                 className="dark:opacity-40"
                 strokeDasharray="4 4"
               />
               <text
                 x={tick.x}
-                y={height - padding.bottom + 20}
+                y={HEIGHT - PADDING.bottom + 20}
                 textAnchor="middle"
                 fill={tickFill}
                 style={{ fontSize: 11, fontFamily: 'ui-monospace, monospace' }}
@@ -253,9 +260,9 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
           ))}
 
           <line
-            x1={padding.left}
+            x1={PADDING.left}
             y1={zeroY}
-            x2={width - padding.right}
+            x2={WIDTH - PADDING.right}
             y2={zeroY}
             stroke="#64748b"
             strokeWidth="1.5"
@@ -301,9 +308,9 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
             <g>
               <line
                 x1={getXPos(activePoint.quarter)}
-                y1={padding.top}
+                y1={PADDING.top}
                 x2={getXPos(activePoint.quarter)}
-                y2={height - padding.bottom}
+                y2={HEIGHT - PADDING.bottom}
                 stroke="#94a3b8"
                 strokeWidth="1.5"
                 strokeDasharray="3 3"

@@ -122,6 +122,7 @@ export const App: React.FC = () => {
             setReportStrategy={setReportStrategy}
             mode={state.mode}
             setMode={setMode}
+            getShareableUrl={getShareableUrl}
           />
         )}
 
@@ -136,6 +137,7 @@ export const App: React.FC = () => {
             setSelectedStandardLoanName={setSelectedStandardLoanName}
             mode={state.mode}
             setMode={setMode}
+            getShareableUrl={getShareableUrl}
           />
         )}
 
@@ -154,6 +156,7 @@ export const App: React.FC = () => {
             setSelectedLayer2LoanName={setSelectedLayer2LoanName}
             mode={state.mode}
             setMode={setMode}
+            getShareableUrl={getShareableUrl}
           />
         )}
       </main>

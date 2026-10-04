@@ -56,19 +56,13 @@ export const LoanChart: React.FC<LoanChartProps> = ({
     return { minValue: minVal, maxValue: maxVal };
   }, [series, isZoomed]);
 
-  const getY = (val: number) => {
-    const range = maxValue - minValue || 1;
-    const clamped = Math.max(minValue, Math.min(maxValue, val));
-    return padding.top + plotHeight - ((clamped - minValue) / range) * plotHeight;
-  };
-
   // Generate 5 nice Y-axis ticks
   const yTicks = useMemo(() => {
     const count = 5;
-    const range = maxValue - minValue;
+    const range = maxValue - minValue || 1;
     return Array.from({ length: count + 1 }, (_, i) => {
-      const val = minValue + (range / count) * i;
-      const y = padding.top + plotHeight - ((val - minValue) / (range || 1)) * plotHeight;
+      const val = minValue + ((maxValue - minValue) / count) * i;
+      const y = padding.top + plotHeight - ((val - minValue) / range) * plotHeight;
       return {
         value: val,
         y,
@@ -95,10 +89,16 @@ export const LoanChart: React.FC<LoanChartProps> = ({
 
   // Calculate SVG polyline points and uncertainty bands for each series
   const seriesPaths = useMemo(() => {
+    const range = maxValue - minValue || 1;
+    const computeY = (val: number) => {
+      const clamped = Math.max(minValue, Math.min(maxValue, val));
+      return padding.top + plotHeight - ((clamped - minValue) / range) * plotHeight;
+    };
+
     return series.map((s) => {
       const points = s.data.map((val, year) => {
         const x = padding.left + (year / years) * plotWidth;
-        const y = getY(val);
+        const y = computeY(val);
         return `${x},${y}`;
       });
 
@@ -112,13 +112,13 @@ export const LoanChart: React.FC<LoanChartProps> = ({
       if (s.uncertaintyUpper && s.uncertaintyLower) {
         const upperPts = s.uncertaintyUpper.map((val, year) => {
           const x = padding.left + (year / years) * plotWidth;
-          const y = getY(val);
+          const y = computeY(val);
           return `${x},${y}`;
         });
 
         const lowerPts = s.uncertaintyLower.map((val, year) => {
           const x = padding.left + (year / years) * plotWidth;
-          const y = getY(val);
+          const y = computeY(val);
           return `${x},${y}`;
         }).reverse();
 

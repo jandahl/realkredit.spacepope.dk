@@ -23,6 +23,7 @@ interface StandardLoanViewProps {
   setSelectedStandardLoanName: (name: string | null) => void;
   mode: AppMode;
   setMode: (mode: AppMode) => void;
+  getShareableUrl?: () => string;
 }
 
 export const StandardLoanView: React.FC<StandardLoanViewProps> = ({
@@ -35,6 +36,7 @@ export const StandardLoanView: React.FC<StandardLoanViewProps> = ({
   setSelectedStandardLoanName,
   mode,
   setMode,
+  getShareableUrl,
 }) => {
   const isReport = mode === 'report';
   const activeLoan = useMemo(() => {
@@ -118,7 +120,11 @@ export const StandardLoanView: React.FC<StandardLoanViewProps> = ({
   return (
     <div className={`flex flex-col gap-5 min-w-0 max-w-full ${fieldErrors.length ? "pb-28" : "pb-8"}`}>
       {isReport ? (
-        <ReportBar title="Rapport: Standardlån" onEdit={() => setMode('edit')} />
+        <ReportBar
+          title="Rapport: Standardlån"
+          onEdit={() => setMode('edit')}
+          getShareableUrl={getShareableUrl}
+        />
       ) : (
         <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
           <div className="flex items-start justify-between gap-3">
