@@ -37,3 +37,18 @@
     background-color: inherit;
   }
 }
+
+@media print {
+  header, footer, nav, button, [role="dialog"], input[type="range"] {
+    display: none !important;
+  }
+  body, html {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+  }
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+}

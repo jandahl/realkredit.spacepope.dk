@@ -28,6 +28,7 @@ interface TwoLayerLoanViewProps {
   setSelectedLayer2LoanName: (name: string | null) => void;
   mode: AppMode;
   setMode: (mode: AppMode) => void;
+  getShareableUrl?: () => string;
 }
 
 export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
@@ -44,6 +45,7 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
   setSelectedLayer2LoanName,
   mode,
   setMode,
+  getShareableUrl,
 }) => {
   const isReport = mode === 'report';
   // Defaults: Layer 1 = F-kort, Layer 2 = 4% Fixed med afdrag
@@ -168,7 +170,11 @@ export const TwoLayerLoanView: React.FC<TwoLayerLoanViewProps> = ({
   return (
     <div className={`flex flex-col gap-5 min-w-0 max-w-full ${fieldErrors.length ? "pb-28" : "pb-8"}`}>
       {isReport ? (
-        <ReportBar title="Rapport: To-lags belåning" onEdit={() => setMode('edit')} />
+        <ReportBar
+          title="Rapport: To-lags belåning"
+          onEdit={() => setMode('edit')}
+          getShareableUrl={getShareableUrl}
+        />
       ) : (
         <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
           <div className="flex items-start justify-between gap-3">
