@@ -17,6 +17,7 @@ interface LoanChartProps {
   years: number; // e.g. 30
   series: ChartSeries[];
   valueFormatter?: (val: number) => string;
+  borderless?: boolean;
 }
 
 export const LoanChart: React.FC<LoanChartProps> = ({
@@ -25,6 +26,7 @@ export const LoanChart: React.FC<LoanChartProps> = ({
   years,
   series,
   valueFormatter = formatKr,
+  borderless = false,
 }) => {
   const [hoveredYear, setHoveredYear] = useState<number | null>(null);
   const [isZoomed, setIsZoomed] = useState<boolean>(false);
@@ -168,7 +170,7 @@ export const LoanChart: React.FC<LoanChartProps> = ({
   } : null;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
+    <div className={borderless ? "w-full transition-colors" : "rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors"}>
       <div className="flex flex-col gap-2.5 mb-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm sm:text-base">{title}</h3>

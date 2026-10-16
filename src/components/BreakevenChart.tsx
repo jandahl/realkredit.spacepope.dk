@@ -19,6 +19,7 @@ interface BreakevenChartProps {
   comparisonLabel?: string;
   /** Mode to tailor explanation text and badge semantics */
   mode?: 'refinancing' | 'tillaeg_vs_omlaegning';
+  borderless?: boolean;
 }
 
 const WIDTH = 800;
@@ -38,6 +39,7 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
   baselineLabel,
   comparisonLabel,
   mode = 'refinancing',
+  borderless = false,
 }) => {
   const [hoveredQuarter, setHoveredQuarter] = useState<number | null>(null);
 
@@ -151,7 +153,7 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
   const labelFill = '#f43f5e';
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors">
+    <div className={borderless ? "w-full transition-colors" : "rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900 transition-colors"}>
       <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
         <div>
           <div className="flex items-center gap-2">
