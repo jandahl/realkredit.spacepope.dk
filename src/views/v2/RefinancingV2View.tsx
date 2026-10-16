@@ -96,10 +96,9 @@ export const RefinancingV2View: React.FC<RefinancingV2ViewProps> = ({
 }) => {
   // Mobile stage selection (1 = Bundlinje/Overview, 2 = Indstillinger/Controls, 3 = Dybde/Analytics)
   const [mobileTab, setMobileTab] = useState<'overview' | 'inputs' | 'deepdive'>('overview');
-  // Desktop tabbed analysis deck
-  const [desktopTab, setDesktopTab] = useState<'flow' | 'charts' | 'comparator' | 'amortization'>('flow');
-  // Secondary sub-tabs
-  const [chartSubTab, setChartSubTab] = useState<'breakeven' | 'debt'>('breakeven');
+  // Desktop tabbed analysis deck: Default directly to 'debt_chart' so user immediately sees Restgældsudvikling over tid
+  const [desktopTab, setDesktopTab] = useState<'debt_chart' | 'breakeven_chart' | 'kurseffekt' | 'comparator' | 'amortization'>('debt_chart');
+  
   const [showFees, setShowFees] = useState(false);
   const [showDumbIdeasModal, setShowDumbIdeasModal] = useState(false);
   const [showScenariosModal, setShowScenariosModal] = useState(false);
@@ -562,7 +561,7 @@ export const RefinancingV2View: React.FC<RefinancingV2ViewProps> = ({
             mobileTab !== 'inputs' ? 'hidden lg:flex' : 'flex'
           }`}
         >
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs transition-colors flex flex-col gap-3.5">
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs transition-colors flex flex-col gap-3">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
               <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                 <SlidersHorizontal className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
@@ -601,14 +600,14 @@ export const RefinancingV2View: React.FC<RefinancingV2ViewProps> = ({
             />
 
             {/* Loan Pickers */}
-            <div className="border-t border-slate-100 dark:border-slate-800 pt-3">
+            <div className="border-t border-slate-100 dark:border-slate-800 pt-2.5">
               <DependentLoanSelect
                 label="Nuværende lån (indfrielse)"
                 loans={indfrielseLoans}
                 selectedLoan={activeExisting}
                 onSelectLoan={(l) => setSelectedExistingLoanName(l.name)}
-                subtext={`Kurs ${formatKurs(activeExisting.kurs)} • Indfrielse: ${formatKurs(Math.min(100, activeExisting.kurs))}`}
                 allowCustom={true}
+                compact={true}
               />
             </div>
 
@@ -629,7 +628,7 @@ export const RefinancingV2View: React.FC<RefinancingV2ViewProps> = ({
             </div>
 
             {activeExisting.afdragsfri && (
-              <div className="flex flex-col gap-1 rounded-lg bg-amber-50 dark:bg-amber-950/20 p-2.5 border border-amber-200/60 dark:border-amber-900/30">
+              <div className="flex flex-col gap-1 rounded-lg bg-amber-50 dark:bg-amber-950/20 p-2 border border-amber-200/60 dark:border-amber-900/30">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-amber-800 dark:text-amber-300 font-medium">Afdragsfrihed tilbage</span>
                   <span className="font-bold text-amber-600 dark:text-amber-400">{existingAfdragsfriYears} år</span>
@@ -646,14 +645,14 @@ export const RefinancingV2View: React.FC<RefinancingV2ViewProps> = ({
               </div>
             )}
 
-            <div className="border-t border-slate-100 dark:border-slate-800 pt-3">
+            <div className="border-t border-slate-100 dark:border-slate-800 pt-2.5">
               <DependentLoanSelect
                 label="Nyt lån (optagelse)"
                 loans={optagelseLoans}
                 selectedLoan={activeNew}
                 onSelectLoan={(l) => setSelectedNewLoanName(l.name)}
-                subtext={`Optagelseskurs: ${formatKurs(activeNew.kurs)}`}
                 allowCustom={true}
+                compact={true}
               />
             </div>
 
@@ -674,7 +673,7 @@ export const RefinancingV2View: React.FC<RefinancingV2ViewProps> = ({
             </div>
 
             {activeNew.afdragsfri && (
-              <div className="flex flex-col gap-1 rounded-lg bg-blue-50 dark:bg-blue-950/20 p-2.5 border border-blue-200/60 dark:border-blue-900/30">
+              <div className="flex flex-col gap-1 rounded-lg bg-blue-50 dark:bg-blue-950/20 p-2 border border-blue-200/60 dark:border-blue-900/30">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-blue-900 dark:text-blue-300 font-medium">Nye afdragsfrie år</span>
                   <span className="font-bold text-blue-600 dark:text-blue-400">{newAfdragsfriYears} år</span>
@@ -692,7 +691,7 @@ export const RefinancingV2View: React.FC<RefinancingV2ViewProps> = ({
             )}
 
             {/* Friværdiudtag (Cashout) Drawer in sidebar */}
-            <div className="border-t border-slate-100 dark:border-slate-800 pt-3 flex flex-col gap-2">
+            <div className="border-t border-slate-100 dark:border-slate-800 pt-2.5 flex flex-col gap-2">
               <label className="flex items-center justify-between text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
                 <span className="flex items-center gap-1.5">
                   <Banknote className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -743,7 +742,7 @@ export const RefinancingV2View: React.FC<RefinancingV2ViewProps> = ({
                       onClick={() => handleFrivaerdiStrategyChange('omlaegning')}
                       className={`flex-1 py-1 rounded-md text-center transition-all ${
                         frivaerdiStrategy === 'omlaegning'
-                          ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs'
+                          ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs font-bold'
                           : 'text-slate-600 dark:text-slate-400'
                       }`}
                     >
@@ -754,7 +753,7 @@ export const RefinancingV2View: React.FC<RefinancingV2ViewProps> = ({
                       onClick={() => handleFrivaerdiStrategyChange('tillaeg')}
                       className={`flex-1 py-1 rounded-md text-center transition-all ${
                         frivaerdiStrategy === 'tillaeg'
-                          ? 'bg-emerald-600 text-white shadow-2xs'
+                          ? 'bg-emerald-600 text-white shadow-2xs font-bold'
                           : 'text-slate-600 dark:text-slate-400'
                       }`}
                     >
@@ -769,7 +768,7 @@ export const RefinancingV2View: React.FC<RefinancingV2ViewProps> = ({
             <button
               type="button"
               onClick={() => setMobileTab('overview')}
-              className="lg:hidden mt-2 w-full rounded-xl bg-blue-600 py-2.5 text-xs font-bold text-white shadow-sm text-center"
+              className="lg:hidden mt-1 w-full rounded-xl bg-blue-600 py-2.5 text-xs font-bold text-white shadow-sm text-center"
             >
               Se resultat &rarr;
             </button>
@@ -787,7 +786,11 @@ export const RefinancingV2View: React.FC<RefinancingV2ViewProps> = ({
             {/* Top verdict bar */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                {isDebtReduced ? (
+                {isOptionBActive ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-950/80 px-2.5 py-0.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                    Option B: Behold eksisterende lån + nyt tillægslån (+{formatKr(displayDeltaRestgaeld)})
+                  </span>
+                ) : isDebtReduced ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-950/80 px-2.5 py-0.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
                     <TrendingDown className="h-3.5 w-3.5" />
                     Gæld skæres med {formatKr(Math.abs(displayDeltaRestgaeld))}
@@ -797,7 +800,7 @@ export const RefinancingV2View: React.FC<RefinancingV2ViewProps> = ({
                     Restgæld ændring: +{formatKr(displayDeltaRestgaeld)}
                   </span>
                 )}
-                {isUpconversion && (
+                {isUpconversion && !isOptionBActive && (
                   <span className="hidden sm:inline-block text-xs text-slate-500 dark:text-slate-400">
                     (Opkonvertering: {formatPercent(activeExisting.rente)} &rarr; {formatPercent(activeNew.rente)})
                   </span>
@@ -834,7 +837,7 @@ export const RefinancingV2View: React.FC<RefinancingV2ViewProps> = ({
               {/* Metric 2: Net Debt */}
               <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3 flex flex-col justify-between">
                 <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                  Ny restgæld
+                  {isOptionBActive ? 'Samlet restgæld' : 'Ny restgæld'}
                 </span>
                 <div className="my-1 text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
                   {formatKr(displayNyHovedstol)}
@@ -877,14 +880,49 @@ export const RefinancingV2View: React.FC<RefinancingV2ViewProps> = ({
             {/* Tab header */}
             <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-800/40 p-2 sm:px-4 flex items-center justify-between gap-2 overflow-x-auto">
               <nav className="flex items-center gap-1 text-xs font-semibold">
+                {/* 1. Restgældsudvikling Tab (Clear separate primary tab) */}
                 <button
                   type="button"
                   onClick={() => {
-                    setDesktopTab('flow');
+                    setDesktopTab('debt_chart');
+                    setMobileTab('deepdive');
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
+                    desktopTab === 'debt_chart'
+                      ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs font-bold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <BarChart3 className="h-3.5 w-3.5" />
+                  <span>Restgældsudvikling</span>
+                </button>
+
+                {/* 2. Breakeven Graf Tab (Clear separate primary tab) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDesktopTab('breakeven_chart');
+                    setMobileTab('deepdive');
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
+                    desktopTab === 'breakeven_chart'
+                      ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs font-bold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Scale className="h-3.5 w-3.5" />
+                  <span>Breakeven-graf</span>
+                </button>
+
+                {/* 3. Kurseffekt & gebyrer */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDesktopTab('kurseffekt');
                     setMobileTab('overview');
                   }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                    desktopTab === 'flow'
+                    desktopTab === 'kurseffekt'
                       ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs font-bold'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
@@ -893,22 +931,7 @@ export const RefinancingV2View: React.FC<RefinancingV2ViewProps> = ({
                   <span>Kurseffekt & gebyrer</span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDesktopTab('charts');
-                    setMobileTab('deepdive');
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                    desktopTab === 'charts'
-                      ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs font-bold'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  <BarChart3 className="h-3.5 w-3.5" />
-                  <span>Grafer</span>
-                </button>
-
+                {/* 4. Option A vs B (when cashout active) */}
                 {enableFrivaerdi && tillaegslaanComparison && (
                   <button
                     type="button"
@@ -927,6 +950,7 @@ export const RefinancingV2View: React.FC<RefinancingV2ViewProps> = ({
                   </button>
                 )}
 
+                {/* 5. Amortisering */}
                 <button
                   type="button"
                   onClick={() => {
@@ -943,33 +967,56 @@ export const RefinancingV2View: React.FC<RefinancingV2ViewProps> = ({
                   <span>Amortisering</span>
                 </button>
               </nav>
-
-              {desktopTab === 'charts' && (
-                <div className="flex items-center rounded-lg bg-slate-200/80 dark:bg-slate-800 p-0.5 text-[11px] font-semibold shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setChartSubTab('breakeven')}
-                    className={`px-2 py-0.5 rounded-md ${
-                      chartSubTab === 'breakeven' ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs' : 'text-slate-600 dark:text-slate-400'
-                    }`}
-                  >
-                    Breakeven
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setChartSubTab('debt')}
-                    className={`px-2 py-0.5 rounded-md ${
-                      chartSubTab === 'debt' ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs' : 'text-slate-600 dark:text-slate-400'
-                    }`}
-                  >
-                    Restgæld
-                  </button>
-                </div>
-              )}
             </div>
 
-            {/* TAB CONTENT 1: KURSEFFEKT & GEBYRER */}
-            {desktopTab === 'flow' && (
+            {/* TAB CONTENT 1: RESTGÆLDSUDVIKLING OVER TID */}
+            {desktopTab === 'debt_chart' && (
+              <div className="p-4 sm:p-5">
+                <LoanChart
+                  title="Restgældsudvikling over tid"
+                  years={comparison.maxYears}
+                  series={chartSeries}
+                  borderless={true}
+                />
+              </div>
+            )}
+
+            {/* TAB CONTENT 2: BREAKEVEN GRAF */}
+            {desktopTab === 'breakeven_chart' && (
+              <div className="p-4 sm:p-5">
+                <BreakevenChart
+                  existingSchedule={
+                    isOptionBActive && optionBSchedule
+                      ? comparison.newSchedule
+                      : comparison.existingSchedule
+                  }
+                  newSchedule={
+                    isOptionBActive && optionBSchedule
+                      ? optionBSchedule
+                      : comparison.newSchedule
+                  }
+                  maxYears={
+                    isOptionBActive && optionBSchedule
+                      ? Math.max(comparison.newSchedule.totalQuarters, optionBSchedule.totalQuarters) / 4
+                      : comparison.maxYears
+                  }
+                  frivaerdiUdbetalt={isOptionBActive && optionBSchedule ? 0 : effectiveFrivaerdi}
+                  title={
+                    isOptionBActive
+                      ? 'Breakeven: Option B (Tillæg) vs. Option A (Fuld)'
+                      : 'Breakeven: Nyt lån vs. Nuværende'
+                  }
+                  baselineLabel={isOptionBActive ? 'Option A' : undefined}
+                  comparisonLabel={isOptionBActive ? 'Option B' : undefined}
+                  mode={isOptionBActive ? 'tillaeg_vs_omlaegning' : 'refinancing'}
+                  onOpenDumbIdeas={() => setShowDumbIdeasModal(true)}
+                  borderless={true}
+                />
+              </div>
+            )}
+
+            {/* TAB CONTENT 3: KURSEFFEKT & GEBYRER */}
+            {desktopTab === 'kurseffekt' && (
               <div className="p-4 sm:p-5 flex flex-col gap-4">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {/* Kursgevinst ved indfrielse */}
@@ -1023,7 +1070,11 @@ export const RefinancingV2View: React.FC<RefinancingV2ViewProps> = ({
                       </div>
                     </div>
                     <div className="mt-2 text-xs text-slate-600 dark:text-slate-300 border-t border-slate-200/60 dark:border-slate-700/60 pt-2">
-                      {netKurseffekt >= 0 ? 'Kursgevinst overstiger kurstabet' : 'Kurstab overstiger gevinst'}
+                      {isOptionBActive
+                        ? 'Tillægslåns kurstab'
+                        : netKurseffekt >= 0
+                        ? 'Kursgevinst overstiger kurstabet'
+                        : 'Kurstab overstiger gevinst'}
                     </div>
                   </div>
                 </div>
@@ -1033,9 +1084,17 @@ export const RefinancingV2View: React.FC<RefinancingV2ViewProps> = ({
                   <Lightbulb className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
                   <div className="flex-1">
                     <span className="font-bold text-slate-900 dark:text-slate-100">
-                      {isUpconversion ? 'Opkonvertering med gældsskær: ' : 'Omlægning: '}
+                      {isOptionBActive
+                        ? 'Option B (Tillægslån): '
+                        : isUpconversion
+                        ? 'Opkonvertering med gældsskær: '
+                        : 'Omlægning: '}
                     </span>
-                    {isUpconversion ? (
+                    {isOptionBActive ? (
+                      <span>
+                        Du beholder dit eksisterende lån på {formatKr(debt)} til {formatPercent(activeExisting.rente)} urørt, og optager et særskilt tillægslån på {formatKr(displayDeltaRestgaeld)} til {formatPercent(activeNew.rente)}. Det sparer dig for etablering og tinglysning på hele hovedstolen.
+                      </span>
+                    ) : isUpconversion ? (
                       <span>
                         Du skærer <strong>{formatKr(Math.abs(displayDeltaRestgaeld))}</strong> af din nominelle restgæld, men din månedlige ydelse stiger med <strong>{formatKr(displayDeltaMonthlyYdelse)}</strong>/md. Det er en gevinst, hvis renten falder igen inden for {breakevenYears ? `${breakevenYears.toFixed(1)} år` : 'få år'}, så du kan nedkonvertere.
                       </span>
@@ -1087,48 +1146,7 @@ export const RefinancingV2View: React.FC<RefinancingV2ViewProps> = ({
               </div>
             )}
 
-            {/* TAB CONTENT 2: CHARTS */}
-            {desktopTab === 'charts' && (
-              <div className="p-4 sm:p-5">
-                {chartSubTab === 'breakeven' ? (
-                  <BreakevenChart
-                    existingSchedule={
-                      isOptionBActive && optionBSchedule
-                        ? comparison.newSchedule
-                        : comparison.existingSchedule
-                    }
-                    newSchedule={
-                      isOptionBActive && optionBSchedule
-                        ? optionBSchedule
-                        : comparison.newSchedule
-                    }
-                    maxYears={
-                      isOptionBActive && optionBSchedule
-                        ? Math.max(comparison.newSchedule.totalQuarters, optionBSchedule.totalQuarters) / 4
-                        : comparison.maxYears
-                    }
-                    frivaerdiUdbetalt={isOptionBActive && optionBSchedule ? 0 : effectiveFrivaerdi}
-                    title={
-                      isOptionBActive
-                        ? 'Breakeven: Option B (Tillæg) vs. Option A (Fuld)'
-                        : 'Breakeven: Nyt lån vs. Nuværende'
-                    }
-                    baselineLabel={isOptionBActive ? 'Option A' : undefined}
-                    comparisonLabel={isOptionBActive ? 'Option B' : undefined}
-                    mode={isOptionBActive ? 'tillaeg_vs_omlaegning' : 'refinancing'}
-                    onOpenDumbIdeas={() => setShowDumbIdeasModal(true)}
-                  />
-                ) : (
-                  <LoanChart
-                    title="Restgældsudvikling over tid"
-                    years={comparison.maxYears}
-                    series={chartSeries}
-                  />
-                )}
-              </div>
-            )}
-
-            {/* TAB CONTENT 3: OPTION A VS B COMPARATOR */}
+            {/* TAB CONTENT 4: OPTION A VS B COMPARATOR */}
             {desktopTab === 'comparator' && tillaegslaanComparison && (
               <div className="p-4 sm:p-5">
                 <TillaegslaanComparator
@@ -1140,7 +1158,7 @@ export const RefinancingV2View: React.FC<RefinancingV2ViewProps> = ({
               </div>
             )}
 
-            {/* TAB CONTENT 4: AMORTIZATION SCHEDULE */}
+            {/* TAB CONTENT 5: AMORTIZATION SCHEDULE */}
             {desktopTab === 'amortization' && (
               <div className="p-4 sm:p-5 flex flex-col gap-3">
                 <AmortizationTable
