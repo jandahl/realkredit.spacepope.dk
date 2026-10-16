@@ -11,6 +11,7 @@ interface DependentLoanSelectProps {
   onSelectLoan: (loan: BondLoan) => void;
   subtext?: string;
   allowCustom?: boolean;
+  compact?: boolean;
 }
 
 export const DependentLoanSelect: React.FC<DependentLoanSelectProps> = ({
@@ -20,6 +21,7 @@ export const DependentLoanSelect: React.FC<DependentLoanSelectProps> = ({
   onSelectLoan,
   subtext,
   allowCustom,
+  compact = false,
 }) => {
   // Parse all loans
   const parsedLoans = useMemo(() => {
@@ -340,17 +342,17 @@ export const DependentLoanSelect: React.FC<DependentLoanSelectProps> = ({
 
       {/* Selected Loan Badge / Kurs info */}
       {selectedLoan && (
-        <div className="flex items-center justify-between rounded-lg bg-slate-50 dark:bg-slate-800/80 px-3 py-1.5 text-xs border border-slate-200/70 dark:border-slate-700">
-          <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[220px]">
+        <div className={`flex items-center justify-between rounded-lg bg-slate-50 dark:bg-slate-800/80 px-2.5 py-1 text-xs border border-slate-200/70 dark:border-slate-700 ${compact ? 'text-[11px]' : ''}`}>
+          <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[210px]" title={selectedLoan.name}>
             {selectedLoan.name}
           </span>
-          <span className="font-bold text-blue-600 dark:text-blue-400">
+          <span className="font-bold text-blue-600 dark:text-blue-400 shrink-0 ml-1.5">
             Kurs {formatKurs(selectedLoan.kurs)}
           </span>
         </div>
       )}
 
-      {subtext && <span className="text-[11px] text-slate-500 dark:text-slate-400">{subtext}</span>}
+      {!compact && subtext && <span className="text-[11px] text-slate-500 dark:text-slate-400">{subtext}</span>}
     </div>
   );
 };
