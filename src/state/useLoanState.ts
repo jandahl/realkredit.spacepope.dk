@@ -55,12 +55,16 @@ function getInitialState(): SharedLoanState {
   if (typeof window === 'undefined') return DEFAULT_STATE;
 
   const urlParams = new URLSearchParams(window.location.search);
-  const hasUrlParams = urlParams.has('tab') || urlParams.has('pv') || urlParams.has('debt');
+  const isV2Query = urlParams.get('v') === '2' || urlParams.get('tab') === 'v2';
+  const hasUrlParams =
+    urlParams.has('tab') || urlParams.has('pv') || urlParams.has('debt') || isV2Query;
   const mode = resolveAppMode(window.location.search);
 
   if (hasUrlParams) {
     const viewParam = urlParams.get('tab') as ViewType;
-    const currentView = ['refinancing', 'standard', 'twolayer'].includes(viewParam)
+    const currentView: ViewType = isV2Query
+      ? 'v2'
+      : ['refinancing', 'v2', 'standard', 'twolayer'].includes(viewParam)
       ? viewParam
       : 'refinancing';
 
@@ -110,6 +114,7 @@ function getInitialState(): SharedLoanState {
     };
   }
 
+  // If URL explicitly requests ?v=2 or ?tab=v2
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -117,13 +122,18 @@ function getInitialState(): SharedLoanState {
       // Fresh visit without share params → edit (URL is source of truth for share).
       // Do not restore a stale report mode from localStorage on a clean URL.
       const { mode: _ignoredMode, ...rest } = parsed;
-      return { ...DEFAULT_STATE, ...rest, mode: 'edit' };
+      return {
+        ...DEFAULT_STATE,
+        ...rest,
+        currentView: isV2Query ? 'v2' : rest.currentView || DEFAULT_STATE.currentView,
+        mode: 'edit',
+      };
     }
   } catch (err) {
     console.warn('Failed to parse saved state from localStorage:', err);
   }
 
-  return { ...DEFAULT_STATE, mode: 'edit' };
+  return { ...DEFAULT_STATE, currentView: isV2Query ? 'v2' : DEFAULT_STATE.currentView, mode: 'edit' };
 }
 
 export function useLoanState() {
@@ -138,6 +148,9 @@ export function useLoanState() {
     }
 
     const params = new URLSearchParams();
+    if (state.currentView === 'v2') {
+      params.set('v', '2');
+    }
     params.set('tab', state.currentView);
     params.set('mode', state.mode);
     params.set('pv', state.propertyValue.toString());

@@ -3,6 +3,7 @@ import { Navbar } from './components/Navbar';
 import { RefinancingView } from './views/RefinancingView';
 import { StandardLoanView } from './views/StandardLoanView';
 import { TwoLayerLoanView } from './views/TwoLayerLoanView';
+import { RefinancingV2View } from './views/v2/RefinancingV2View';
 import { WelcomeDisclaimerModal } from './components/WelcomeDisclaimerModal';
 import { fetchKurser, TOTALKREDIT_KURSER_URL, NASDAQ_MORTGAGE_BONDS_URL } from './api/rates';
 import type { BondLoan } from './calculator/types';
@@ -95,6 +96,42 @@ export const App: React.FC = () => {
       <main className="mx-auto max-w-6xl w-full min-w-0 flex-1 px-4 py-5 sm:px-6 sm:py-6">
         {state.currentView === 'refinancing' && (
           <RefinancingView
+            indfrielseLoans={indfrielseLoans}
+            optagelseLoans={optagelseLoans}
+            propertyValue={state.propertyValue}
+            setPropertyValue={setPropertyValue}
+            debt={state.existingRestgaeld}
+            setDebt={setDebt}
+            remainingYears={state.remainingYears}
+            setRemainingYears={setRemainingYears}
+            selectedExistingLoanName={state.selectedExistingLoanName}
+            setSelectedExistingLoanName={setSelectedExistingLoanName}
+            selectedNewLoanName={state.selectedNewLoanName}
+            setSelectedNewLoanName={setSelectedNewLoanName}
+            enableFrivaerdi={state.enableFrivaerdi}
+            setEnableFrivaerdi={setEnableFrivaerdi}
+            frivaerdiUdbetalt={state.frivaerdiUdbetalt}
+            setFrivaerdiUdbetalt={setFrivaerdiUdbetalt}
+            frivaerdiStrategy={state.frivaerdiStrategy}
+            setFrivaerdiStrategy={setFrivaerdiStrategy}
+            newLoanYearsState={state.newLoanYears}
+            setNewLoanYears={setNewLoanYears}
+            existingAfdragsfriYearsState={state.existingAfdragsfriYears}
+            setExistingAfdragsfriYears={setExistingAfdragsfriYears}
+            newAfdragsfriYearsState={state.newAfdragsfriYears}
+            setNewAfdragsfriYears={setNewAfdragsfriYears}
+            reportStrategyState={state.reportStrategy}
+            setReportStrategy={setReportStrategy}
+            mode={state.mode}
+            setMode={setMode}
+            getShareableUrl={getShareableUrl}
+            currentState={state}
+            onRestoreScenario={setEntireState}
+          />
+        )}
+
+        {state.currentView === 'v2' && (
+          <RefinancingV2View
             indfrielseLoans={indfrielseLoans}
             optagelseLoans={optagelseLoans}
             propertyValue={state.propertyValue}
