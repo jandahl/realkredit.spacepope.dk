@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import type { BondLoan, LoanAmortizationResult, QuarterlyScheduleRow } from '../calculator/types';
 import { calculateRefinancing } from '../calculator/refinancing';
 import { getDefaultAfdragsfriYears, estimateRemainingAfdragsfriYears, getOriginalTermYears } from '../calculator/amortization';
+import { parseUdloebsAar } from '../api/rates';
 import { calculateTillaegslaanComparison } from '../calculator/tillaegslaan';
 import { CurrencyInput } from '../components/CurrencyInput';
 import { DependentLoanSelect } from '../components/DependentLoanSelect';
@@ -125,8 +126,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
     let maturityYear: number | undefined = activeExisting.udloebsAar;
 
     if (!maturityYear) {
-      const match = activeExisting.name.match(/\b(20\d\d)\b/);
-      if (match) maturityYear = parseInt(match[1], 10);
+      maturityYear = parseUdloebsAar(activeExisting.name);
     }
 
     if (maturityYear) {
@@ -151,8 +151,7 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
     const currentYear = new Date().getFullYear();
     let maturityYear: number | undefined = activeNew.udloebsAar;
     if (!maturityYear) {
-      const match = activeNew.name.match(/\b(20\d\d)\b/);
-      if (match) maturityYear = parseInt(match[1], 10);
+      maturityYear = parseUdloebsAar(activeNew.name);
     }
 
     if (maturityYear) {
