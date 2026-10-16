@@ -512,12 +512,15 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
   // Compute breakeven years — same schedules + cashout as BreakevenChart
   const breakevenYears = useMemo<number | null>(() => {
     if (!comparison) return null;
-    const existing = comparison.existingSchedule;
-    const neu =
-      isOptionBForBreakeven && optionBSchedule
-        ? optionBSchedule
-        : comparison.newSchedule;
-    const cashout = effectiveFrivaerdi;
+    const isTillaegVsOmlaegning = isOptionBForBreakeven && Boolean(optionBSchedule);
+    const existing = isTillaegVsOmlaegning
+      ? comparison.newSchedule // Option A as baseline
+      : comparison.existingSchedule; // Existing loan as baseline
+    const neu = isTillaegVsOmlaegning
+      ? optionBSchedule! // Option B as comparison
+      : comparison.newSchedule;
+    // For Option B vs Option A, both already include the same cashout, so cashout diff is 0
+    const cashout = isTillaegVsOmlaegning ? 0 : effectiveFrivaerdi;
     const maxYears =
       Math.max(existing.totalQuarters, neu.totalQuarters) / 4 || comparison.maxYears;
     const { breakevenCrossing } = computeBreakevenSeries(existing, neu, maxYears, cashout);
@@ -1294,35 +1297,42 @@ export const RefinancingView: React.FC<RefinancingViewProps> = ({
         />
       )}
 
-      {/* Breakeven Graph — Option B uses combined existing+tillæg as "new" */}
+      {/* Breakeven Graph — Option B compares Option B (Tillægslån) vs Option A (Fuld omlægning) */}
       <BreakevenChart
-        existingSchedule={comparison.existingSchedule}
+        existingSchedule={
+          isOptionBActive && optionBSchedule
+            ? comparison.newSchedule // Option A as baseline
+            : comparison.existingSchedule // Existing loan as baseline
+        }
         newSchedule={
           isOptionBActive && optionBSchedule
-            ? optionBSchedule
+            ? optionBSchedule // Option B as comparison
             : comparison.newSchedule
         }
         maxYears={
           isOptionBActive && optionBSchedule
             ? Math.max(
-                comparison.existingSchedule.totalQuarters,
+                comparison.newSchedule.totalQuarters,
                 optionBSchedule.totalQuarters,
               ) / 4
             : comparison.maxYears
         }
-        frivaerdiUdbetalt={effectiveFrivaerdi}
+        frivaerdiUdbetalt={isOptionBActive && optionBSchedule ? 0 : effectiveFrivaerdi}
         title={
           isOptionBActive
-            ? 'Breakeven (Option B: Nuværende lån + Tillægslån)'
+            ? 'Breakeven: Option B (Tillægslån) vs. Option A (Fuld omlægning)'
             : enableFrivaerdi
               ? 'Breakeven (Option A: Fuld omlægning)'
               : 'Breakeven (Nyt lån vs. Nuværende)'
         }
         subtitle={
           isOptionBActive
-            ? `Formuejusteret balance mellem nuværende lån alene og den samlede Option B-løsning (nuværende + tillægslån på ${formatKr(effectiveFrivaerdi)}).`
+            ? `Formuejusteret balance mellem Option A (fuld omlægning) og Option B (bevar nuværende lån + nyt tillægslån på ${formatKr(effectiveFrivaerdi)}).`
             : undefined
         }
+        baselineLabel={isOptionBActive ? 'Option A' : undefined}
+        comparisonLabel={isOptionBActive ? 'Option B' : undefined}
+        mode={isOptionBActive ? 'tillaeg_vs_omlaegning' : 'refinancing'}
         onOpenDumbIdeas={() => setShowDumbIdeas(true)}
       />
 

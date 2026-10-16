@@ -122,4 +122,25 @@ describe('combinedSchedule', () => {
     expect(c.schedule[0]).toEqual({ endRestgaeld: 130, ydelseEfterSkat: 15 });
     expect(c.schedule[1]).toEqual({ endRestgaeld: 80, ydelseEfterSkat: 10 });
   });
+
+  it('correctly computes breakeven series between Option A and Option B with cashout = 0', () => {
+    // Option A: Full remortgage to high nominal debt but slightly lower ongoing ydelse
+    const optionA = makeSchedule(2_100_000, [
+      { endRestgaeld: 2_050_000, ydelseEfterSkat: 25_000 },
+      { endRestgaeld: 2_000_000, ydelseEfterSkat: 25_000 },
+    ]);
+    // Option B: Combined old loan + tillægslån with lower initial debt but higher ydelse
+    const optionB = makeSchedule(2_000_000, [
+      { endRestgaeld: 1_970_000, ydelseEfterSkat: 27_000 },
+      { endRestgaeld: 1_940_000, ydelseEfterSkat: 27_000 },
+    ]);
+    // Both funded the same cashout, so cashout diff = 0
+    // maxYears=1 -> 4 quarters, plus q0 = 5 data points
+    const result = computeBreakevenSeries(optionA, optionB, 1, 0);
+    expect(result.dataPoints).toHaveLength(5);
+    // At q0: Option B has 100k lower debt -> balance = -100k (favorable to Option B)
+    expect(result.dataPoints[0].balance).toBe(-100_000);
+    // After q1: deltaYdelse = +2k, deltaRest = -80k -> balance = +2k - 80k = -78k
+    expect(result.dataPoints[1].balance).toBe(-78_000);
+  });
 });
