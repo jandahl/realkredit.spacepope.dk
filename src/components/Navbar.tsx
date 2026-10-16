@@ -14,7 +14,7 @@ import {
 import type { ThemeMode } from '../utils/theme';
 import { TOTALKREDIT_KURSER_URL } from '../api/rates';
 
-export type ViewType = 'refinancing' | 'standard' | 'twolayer';
+export type ViewType = 'refinancing' | 'v2' | 'standard' | 'twolayer';
 
 interface NavbarProps {
   currentView: ViewType;
@@ -81,6 +81,19 @@ export const Navbar: React.FC<NavbarProps> = ({
             <ArrowLeftRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 text-blue-600 dark:text-blue-400" />
             <span className="hidden sm:inline">Låneomlægning</span>
             <span className="sm:hidden truncate">Omlæg</span>
+          </button>
+
+          <button
+            onClick={() => onSelectView('v2')}
+            className={`flex min-w-0 items-center gap-0.5 sm:gap-1 rounded-md px-1.5 sm:px-2.5 py-1 sm:py-1.5 transition-all ${
+              currentView === 'v2'
+                ? 'bg-white text-slate-900 shadow-xs font-semibold dark:bg-slate-700 dark:text-slate-100'
+                : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            <span className="font-bold text-blue-600 dark:text-blue-400 text-[10px] bg-blue-100 dark:bg-blue-950 px-1 py-0.2 rounded font-mono">v2</span>
+            <span className="hidden sm:inline">SPOG (v2)</span>
+            <span className="sm:hidden truncate">v2</span>
           </button>
 
           <button
