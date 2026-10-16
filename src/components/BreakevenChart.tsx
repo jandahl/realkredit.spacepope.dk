@@ -13,6 +13,12 @@ interface BreakevenChartProps {
   title?: string;
   subtitle?: string;
   onOpenDumbIdeas?: () => void;
+  /** Label for the baseline (existing / option A) schedule */
+  baselineLabel?: string;
+  /** Label for the comparison (new / option B) schedule */
+  comparisonLabel?: string;
+  /** Mode to tailor explanation text and badge semantics */
+  mode?: 'refinancing' | 'tillaeg_vs_omlaegning';
 }
 
 const WIDTH = 800;
@@ -29,6 +35,9 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
   title = 'Breakeven',
   subtitle,
   onOpenDumbIdeas,
+  baselineLabel,
+  comparisonLabel,
+  mode = 'refinancing',
 }) => {
   const [hoveredQuarter, setHoveredQuarter] = useState<number | null>(null);
 
@@ -154,20 +163,30 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
               </span>
             ) : hasValidSeries && dataPoints[0]?.balance < 0 ? (
               <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400">
-                {title.includes('Option B') ? 'Tillægslån er fordelagtigt i hele løbetiden' : 'Nyt lån er fordelagtigt i hele løbetiden'}
+                {mode === 'tillaeg_vs_omlaegning'
+                  ? 'Option B (Tillægslån) er fordelagtigt i hele løbetiden'
+                  : title.includes('Option B')
+                    ? 'Tillægslån er fordelagtigt i hele løbetiden'
+                    : 'Nyt lån er fordelagtigt i hele løbetiden'}
               </span>
             ) : hasValidSeries ? (
               <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-400">
-                Nuværende lån har lavere samlede omkostninger
+                {mode === 'tillaeg_vs_omlaegning'
+                  ? 'Option A (Fuld omlægning) har lavere samlede omkostninger'
+                  : 'Nuværende lån har lavere samlede omkostninger'}
               </span>
             ) : null}
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             {subtitle || (
-              <>
-                Formuejusteret balance: Σ(Δydelse) + (R_nyt − R_gammel)
-                {frivaerdiUdbetalt > 0 ? ` − udbetaling (${formatKr(frivaerdiUdbetalt)})` : ''}
-              </>
+              mode === 'tillaeg_vs_omlaegning' ? (
+                <>Formuejusteret balance: Σ(Δydelse) + (R_OptionB − R_OptionA) mellem fuld omlægning og tillægslån.</>
+              ) : (
+                <>
+                  Formuejusteret balance: Σ(Δydelse) + (R_nyt − R_gammel)
+                  {frivaerdiUdbetalt > 0 ? ` − udbetaling (${formatKr(frivaerdiUdbetalt)})` : ''}
+                </>
+              )
             )}
           </p>
         </div>
@@ -352,14 +371,14 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
                 </span>
               </div>
               <div className="flex justify-between gap-4 text-slate-500 dark:text-slate-400">
-                <span>Akk. mer-ydelse:</span>
+                <span>{comparisonLabel ? `Akk. mer-ydelse (${comparisonLabel}):` : 'Akk. mer-ydelse:'}</span>
                 <span>{formatKr(activePoint.cumsumYdelse)}</span>
               </div>
               <div className="flex justify-between gap-4 text-slate-500 dark:text-slate-400">
-                <span>Restgældsforskel:</span>
+                <span>{baselineLabel && comparisonLabel ? `Restgældsforskel (${comparisonLabel} − ${baselineLabel}):` : 'Restgældsforskel:'}</span>
                 <span>{formatKr(activePoint.deltaRestgaeld)}</span>
               </div>
-              {frivaerdiUdbetalt > 0 && (
+              {frivaerdiUdbetalt > 0 && mode !== 'tillaeg_vs_omlaegning' && (
                 <div className="flex justify-between gap-4 text-slate-500 dark:text-slate-400">
                   <span>Udbetaling (formue):</span>
                   <span>−{formatKr(frivaerdiUdbetalt)}</span>
@@ -374,11 +393,21 @@ export const BreakevenChart: React.FC<BreakevenChartProps> = ({
       <div className="mt-4 flex items-start gap-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3.5 text-xs text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800">
         <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
         <p className="leading-relaxed">
-          <strong className="text-slate-800 dark:text-slate-200">Negativ balance</strong> betyder, at
-          det nye lån (inkl. evt. friværdiudbetaling som formue) er foran — du er bedre stillet end
-          med det nuværende lån alene. Positiv balance betyder det omvendte. Breakeven er hvor
-          linjen krydser 0. Udbetalingen trækkes som konstant formuekredit (ikke som separat
-          amortisering af restgælden).
+          {mode === 'tillaeg_vs_omlaegning' ? (
+            <>
+              <strong className="text-slate-800 dark:text-slate-200">Negativ balance</strong> betyder, at{' '}
+              <strong className="text-slate-800 dark:text-slate-200">Option B (Tillægslån)</strong> samlet set er billigere (lavere ydelse + restgæld) end Option A (Fuld omlægning).{' '}
+              <strong className="text-slate-800 dark:text-slate-200">Positiv balance</strong> betyder, at Option A er billigere. Breakeven er skæringspunktet, hvor de to strategier koster præcis det samme. Begge løsninger udbetaler den samme friværdi.
+            </>
+          ) : (
+            <>
+              <strong className="text-slate-800 dark:text-slate-200">Negativ balance</strong> betyder, at
+              det nye lån (inkl. evt. friværdiudbetaling som formue) er foran — du er bedre stillet end
+              med det nuværende lån alene. Positiv balance betyder det omvendte. Breakeven er hvor
+              linjen krydser 0. Udbetalingen trækkes som konstant formuekredit (ikke som separat
+              amortisering af restgælden).
+            </>
+          )}
         </p>
       </div>
     </div>
